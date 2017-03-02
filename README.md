@@ -10,7 +10,7 @@ Data Sets:
 	
 	1. ROMA (Road Markings)
 		a.) Comprises of 116 images of diverse road scenes
-		b.) Contains camera calibration parameters which can be used for Image Transformations
+		b.) Contains camera calibration parameters which can be used for Image Transformations (Does not contain Extrinsic Camera Parameters required for IPM)
 	2. Caltech Lanes DataSet
 		a.) Comprises of 1225 frames from urban road enviornment
 		b.) Contains camera calibration parameters which can be used for Image Transformations
