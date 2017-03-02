@@ -1,4 +1,8 @@
-#Inspired from KITTI Road DataSet
+#Inspired from KITTI Road DataSet - transform2BEV
+import numpy as np
+import cv2 as cv
+import os
+
 class BevParams(object):
 	bev_size = None
 	bev_res = None
@@ -25,7 +29,7 @@ class Calibration(object):
 
 	def __init__(self):
 		pass
-	@classmethod
+
 	def setup_calib(self, P2, R0_rect, Tr_cam_to_road):
 		self.P2 = P2
 		R0_rect_raw = R0_rect
@@ -40,8 +44,8 @@ class Calibration(object):
 		self.Tr33 =  self.Tr[:,[0,2,3]]
 
 	def get_matrix33(self):
-
-		assert self.Tr33 != None
+		assert self.Tr33 is not None
+		# print(self.Tr33)
 		return self.Tr33
 
 
@@ -58,19 +62,17 @@ class BirdsEyeView(object):
 	bev_x_ind = None
 	bev_z_ind = None
 
-	def __init__(self, bev_res= 0.05, bev_xRange_minMax = (-10, 10), bev_zRange_minMax = (6, 46)):
+	def __init__(self, bev_res= 0.1, bev_xRange_minMax = (-10, 10), bev_zRange_minMax = (6, 46)):
 		self.calib = Calibration()
 		bev_res = bev_res
 		bev_xRange_minMax = bev_xRange_minMax
 		bev_zRange_minMax = bev_zRange_minMax
 		self.bevParams = BevParams(bev_res, bev_xRange_minMax, bev_zRange_minMax, self.imSize)
 
-	@classmethod
 	def setup(self,P2, R0_rect, Tr_cam_to_road):
 		self.calib.setup_calib(P2, R0_rect, Tr_cam_to_road)
 		self.set_matrix33(self.calib.get_matrix33())
 
-	@classmethod
 	def world2image(self,X_world, Y_world, Z_world):
 		if not type(Y_world) == np.ndarray:
 			Y_world = np.ones_like(Z_world)*Y_world
@@ -89,7 +91,6 @@ class BirdsEyeView(object):
 			self.xi1 = self.invalid_value
 			self.yi1 = self.invalid_value
 
-	@classmethod
 	def world2image_uvMat(self, uv_mat):
 		if uv_mat.shape[0] == 2:
 			if len(uv_mat.shape)==1:
@@ -99,8 +100,7 @@ class BirdsEyeView(object):
 		resultB = np.broadcast_arrays(result, result[-1,:])
 		return resultB[0] / resultB[1]
 
-	@classmethod
-	def computerBEVLookUpTable(self, cropping_ul = None, cropping_size = None):
+	def computeBEVLookUpTable(self, cropping_ul = None, cropping_size = None):
 		mgrid = np.lib.index_tricks.nd_grid()
 		res = self.bevParams.bev_res
 
@@ -138,35 +138,77 @@ class BirdsEyeView(object):
 		self.bev_x_ind = X_ind_vec_sel.reshape(x_OI_im_sel.shape)
 		self.bev_z_ind = Z_ind_vec_sel.reshape(y_OI_im_sel.shape)
 
-	@classmethod
 	def transformImage2BEV(self, inImage, out_dtype = 'f4'):
-		assert self.im_u_float != None
-		assert self.im_v_float != None
-		assert self.im_v_float != None
-		assert self.bev_z_ind != None
 
-		 if len(inImage.shape) > 2:
+		assert self.im_u_float is not None
+		assert self.im_v_float is not None
+		assert self.im_v_float is not None
+		assert self.bev_z_ind is not None
+
+		if len(inImage.shape) > 2:
 		 	outputData = np.zeros(self.bevParams.bev_size + (inImage.shape[2],), dtype = out_dtype)
-		 	for channel in xrange(0, inImage.shape[2]):
+		 	for channel in range(0, inImage.shape[2]):
 		 		outputData[self.bev_z_ind-1, self.bev_x_ind-1, channel] = inImage[self.im_v_float.astype('u4')-1, self.im_u_float.astype('u4')-1, channel]
-		 else:
+		else:
 		 	outputData = np.zeros(self.bevParams.bev_size, dtype = out_dtype)
 		 	outputData[self.bev_z_ind-1, self.bev_x_ind-1] = inImage[self.im_v_float.astype('u4')-1, self.im_u_float.astype('u4')-1]
 
-		 return outputData
+		return outputData
 
 
-	@classmethod
 	def set_matrix33(self, matrix33):
 		self.Tr33 = matrix33
 
-	@classmethod
 	def compute(self, image):
 		self.imSize = image.shape
 		self.computeBEVLookUpTable()
+		return self.transformImage2BEV(image, out_dtype = image.dtype)
 
 
-	
+
+input_image = cv.imread("/home/mohak/Downloads/data_road/testing/image_2/umm_000026.png",cv.IMREAD_COLOR)
+# input_image = cv.imread("/home/mohak/Downloads/roma/BDXD54/IMG00106.jpg",cv.IMREAD_COLOR)
+# cv.imshow("Image",input_image)
+# cv.waitKey(0)
+
+bev = BirdsEyeView()
+
+# P2 = np.array([[7.215377000000e+02, 0.000000000000e+00, 6.095593000000e+02, 4.485728000000e+01],
+#               [0.000000000000e+00 ,7.215377000000e+02 ,1.728540000000e+02 ,2.163791000000e-01],
+#               [0.000000000000e+00, 0.000000000000e+00, 1.000000000000e+00, 2.745884000000e-03]],dtype=np.float64)
+
+P2 = np.array([[7.215377000000e+02, 0.000000000000e+00, 6.095593000000e+02, 4.485728000000e+01],
+              [ 0.000000000000e+00, 7.215377000000e+02, 1.728540000000e+02,2.163791000000e-01],
+              [0.000000000000e+00,0.000000000000e+00,1.000000000000e+00,2.745884000000e-03]],dtype=np.float64)
+
+# P2 = np.array([[7.8429542068e+000, 0, 6.3423199573e+002, -2.0547200987e+000],
+#               [0,7.8429542068e+000,7.4783942715e+002,4.1145446883e-001],
+#               [0,0,1,0]],dtype=np.float64)
+R0_rect = np.array([[9.999239000000e-01, 9.837760000000e-03, -7.445048000000e-03],
+                   [-9.869795000000e-03, 9.999421000000e-01,-4.278459000000e-03],
+                   [7.402527000000e-03, 4.351614000000e-03, 9.999631000000e-01]], dtype = np.float64)
+# R0_rect = np.array([[0.9999274,-0.01030258,-0.00624997],
+#                    [-0.00893876 ,-0.28634691,-0.95808429],
+#                    [0.00808109 ,0.95807064,-0.2864182]],dtype = np.float64)
+
+Tr_cam_to_road = np.array([[9.999286320609e-01, -9.386276237978e-03, -7.395286882057e-03,1.565992649364e-02],
+                          [9.334868787004e-03, 9.999322098894e-01, -6.955575928437e-03, -1.578779135636e+00],
+                          [7.460072373769e-03, 6.886042919607e-03, 9.999484185327e-01,2.854118763826e-01]], dtype =np.float64)
+
+
+# print(P2)
+# print(R0_rect)
+# print(Tr_cam_to_road)
+# print(bev.calib)
+bev.setup(P2,R0_rect,Tr_cam_to_road)
+print(bev.Tr33)
+# cv.imwrite("/home/mohak/IPM_test_images/IPM_test_image_3.png",output_image)
+# print(output_image)
+# cv.imshow("Result",warp)
+# cv.waitKey(0)
+
+
+
 
 
 
