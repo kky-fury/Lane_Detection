@@ -1,4 +1,4 @@
-#Inspired from KITTI Road DataSet - transform2BEV
+# from KITTI Road DataSet - transform2BEV
 import numpy as np
 import cv2 as cv
 import os
