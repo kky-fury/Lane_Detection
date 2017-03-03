@@ -1,5 +1,6 @@
 import numpy as np
 import cv2 as cv
+from skimage import feature
 from collections import defaultdict
 from skimage.transform import hough_line, hough_line_peaks
 import scipy
@@ -9,6 +10,16 @@ np.set_printoptions(threshold=np .nan)
 
 # debug = True
 debug = False
+
+class Line:
+    startpoint = []
+    endpoint = []
+    linescore = 0
+    def __init__(self, startpoint, endpoint, linescore):
+
+        self.startpoint = startpoint
+        self.endpoint = endpoint
+        self.linescore = linescore
 
 def FilterLines(input_image, width_kernel_x,width_kernel_y,sigmax,sigmay):
 
@@ -99,7 +110,7 @@ def getbinaryimage(input_image):
     # Binarize the input  image
     #Calculate Maximum  and minimum of an image
     maximum = np.amax(input_image)
-    print(maximum)
+    # print(maximum)
     minimum = np.amin(input_image)
     thresh = (maximum - minimum)/2
     output_image = cv.threshold(input_image,thresh,1,cv.THRESH_BINARY)
@@ -110,20 +121,21 @@ def getbinaryimage(input_image):
 def getclearImage(thresholded_image):
     img_shape = thresholded_image.shape
     ncolumns = img_shape[1]
+    nrows = img_shape[0]
 
+    approx_1 = int(nrows*0.75)
     approx = int(ncolumns*0.65)
     img_copy = thresholded_image
 
     #Make Right End zero
     img_copy[:,approx:] = 0
     img_copy[:,0:(ncolumns-approx)] = 0
-
+    img_copy[0:(nrows-approx_1),:] = 0
     return img_copy
 
 def getHoughLines(input_image):
     hspace, angles, dist = hough_line(binary_image)
     peak_hspace, angles, dist = hough_line_peaks(hspace, angles, dist)
-
 
     if(debug):
         for i in range(0, len(angles)):
@@ -141,11 +153,97 @@ def getHoughLines(input_image):
         cv.imshow("Result", gray_image)
         cv.waitKey(0)
 
+    # print(peak_hspace)
+    lines = groupLines(angles,dist,peak_hspace)
+    print(lines[0].startpoint)
+    print(lines[0].endpoint)
+    print(lines[0].linescore)
+    # print(endpoints[1][0])
+    # for i in range(0, len(startpoints)):
+    #     cv.line(gray_image,endpoints[i][0],startpoints[i][0],(0,0,255),1)
+    # # # cv.line(gray_image,endpoint[0],startpoint[0],(0,0,255),2)
+    # cv.imshow("Result", gray_image)
+    # cv.waitKey(0)
+
+    return hspace, angles, dist
+
+def getlocalMaxima(input_matrix,  threhold):
+    rows = input_matrix.shape[0]
+    columns = input_matrix.shape[1]
+    localMaxima = []
+    localMaximaLoc = []
+
+    localMaximaLoc = feature.peak_local_max(input_matrix,min_distance=3,indices=True)
+    for i,j in localMaximaLoc:
+        localMaxima.append(input_matrix[i][j])
+    data_dict = defaultdict(list)
+
+    for i in range(0,len(localMaxima)):
+        data_dict[localMaxima[i]].append(localMaximaLoc[i])
+    data_dict = sorted(data_dict.items(),reverse = True)
+    return data_dict
+
+
+def getLineEndPoints(r, theta,img_size):
+    startpoint = []
+    endpoint = []
+    if(mt.cos(theta) == 0):
+        xup = int(img_size[0] + 2)
+        xdown = int(img_size[0] + 2)
+    else:
+        xup = int(r/mt.cos(theta))
+        xdown = int((r-img_size[1]*mt.sin(theta))/mt.cos(theta))
+
+    if(mt.sin(theta ) ==0):
+        yleft = int(img_size[1] + 2)
+        yright = int(img_size[1] + 2)
+    else:
+        yleft = int(r/mt.sin(theta))
+        yright = int((r-img_size[0]*mt.cos(theta))/mt.sin(theta))
+
+    pts = [(xup,0),(xdown,img_size[1]),(0,yleft),(img_size[0],yright)]
+    count = 0
+    for i in range(0,4):
+        if(isPointInside(pts[i],img_size)):
+            startpoint.append((pts[i][0],pts[i][1]))
+            count = i
+            break
+    # print(count )
+    for i in range(count+1,4):
+            if(isPointInside(pts[i],img_size)):
+                endpoint.append((pts[i][0],pts[i][1]))
+                break
+
+    return startpoint, endpoint
+
+
+def isPointInside(point, img_size):
+    if(point[0] >= 0  and point[0] <= img_size[0]  and point[1] >= 0 and point[1] <= img_size[1]):
+        return True
+    else:
+        return False
 
 
 
 
 
+def groupLines(angles, dist, peak_hspace):
+
+    startpoints = []
+    endpoints = []
+    for i in range(0, len(angles)):
+        startpoint, endpoint = getLineEndPoints(dist[i], angles[i], (binary_image.shape[1],binary_image.shape[0]))
+        startpoints.append(startpoint)
+        endpoints.append(endpoint)
+
+    number_of_lines = len(dist)
+    lines = []
+    # print(startpoints[0][0])
+    for i in range(0, number_of_lines):
+        line = Line(startpoints[i][0],endpoints[i][0], peak_hspace[0])
+        lines.append(line)
+
+    return lines
 
 
 
@@ -155,7 +253,7 @@ def getHoughLines(input_image):
 
 
 #Take Input Test Image
-input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_1.png")
+input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_0.png")
 
 # if(debug):
 #     cv.imshow("Input_Image", input_image)
@@ -169,14 +267,14 @@ gray_image = cv.cvtColor(input_image,cv.COLOR_BGR2GRAY)
 #     cv.waitKey(0)
 
 #Preprocess Image
-filtered_image = FilterLines(gray_image,2,2,2.5,10)
+filtered_image = FilterLines(gray_image,2,2,2,10)
 
 if(debug):
     cv.imshow("Gray_Image", filtered_image)
     cv.waitKey(0)
 
 #Threshold Image
-thresholded_image = getQuantile(filtered_image,0.99)
+thresholded_image = getQuantile(filtered_image,0.985)
 
 # if(debug):
 #     cv.imshow("Gray_Image", thresholded_image)
@@ -201,8 +299,22 @@ if(debug):
       cv.imshow("Result", binary_image)
       cv.waitKey(0)
 
+#Select ROI
+image_height = binary_image.shape[0]
+image_width = binary_image.shape[1]
 
+ROI_height = int(0.45*image_height)
+ROI_image = binary_image[ROI_height:,:]
 
+if(debug):
+      cv.imshow("Result", binary_image)
+      cv.waitKey(0)
+hspace, angles, dist = getHoughLines(ROI_image)
+# print(angles)
+# print(dist)
+# groupLines(hspace,binary_image)
+# print(angles)
+# print(dist)
 
 
 
