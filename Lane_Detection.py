@@ -5,6 +5,7 @@ from collections import defaultdict
 from skimage.transform import hough_line, hough_line_peaks
 import scipy
 import math as mt
+import operator
 
 np.set_printoptions(threshold=np .nan)
 
@@ -15,6 +16,7 @@ class Line:
     startpoint = []
     endpoint = []
     linescore = 0
+    list_x_y_points = []
     def __init__(self, startpoint, endpoint, linescore):
 
         self.startpoint = startpoint
@@ -63,6 +65,52 @@ def FilterLines(input_image, width_kernel_x,width_kernel_y,sigmax,sigmay):
     return temp_image
 
 #Get Specified quantile value from Input image
+
+def getRansacLines(thresholded_image, lines):
+
+    test_image = np.transpose(thresholded_image)
+    non_zero_points = np.nonzero(test_image)
+    list_x_y_points = []
+    for i in range(0, len(non_zero_points[0])):
+        point = (non_zero_points[0][i], non_zero_points[1][i])
+        list_x_y_points.append(point)
+
+    sorted_by_second = sorted(list_x_y_points, key=lambda tup: tup[1])
+    # print(sorted_by_second)
+    intializepointsinROI(sorted_by_second, lines)
+
+    for i in range(0, len(lines)):
+        # print(lines[i].list_x_y_points)
+        data = np.array(lines[i].list_x_y_points)
+        line = cv.fitLine(data,cv.DIST_WELSCH,0,0.01,0.01)
+        mult = max(gray_image.shape[0], gray_image.shape[1])
+        startpoint = (int(line[2] - mult*line[0]), int(line[3] - mult*line[1]))
+        endpoint = (int(line[2]  + mult*line[0]), int(line[3] + mult*line[1]))
+        points = cv.clipLine((0,0,gray_image.shape[1],gray_image.shape[0]), startpoint, endpoint)
+        cv.line(gray_image, points[1], points[2],(0, 0, 255),1)
+
+    # print(line)
+    cv.imshow("Result", gray_image)
+    cv.waitKey(0)
+
+def intializepointsinROI(x_y_points, lines):
+
+    # threshold = x_limit_max
+    for i in range(0, len(lines)):
+        # print(lines[i].startpoint)
+        # print(lines[i].endpoint)
+        x_limit_max = max(lines[i].startpoint[0], lines[i].endpoint[0])
+        x_limit_min = min(lines[i].startpoint[0], lines[i].endpoint[0])
+        threshold = x_limit_max - x_limit_min
+        print(threshold)
+        search_range = np.arange(x_limit_min, x_limit_min + threshold)
+        # print(search_range)
+        points = [x for x in x_y_points if  x[0] in search_range]
+        lines[i].list_x_y_points = points
+        # print(lines[i].list_x_y_points)
+
+
+
 
 def getQuantile(input_image, qtile):
     number_rows = input_image.shape[0]
@@ -124,18 +172,24 @@ def getclearImage(thresholded_image):
     nrows = img_shape[0]
 
     approx_1 = int(nrows*0.75)
-    approx = int(ncolumns*0.65)
+    approx = int(ncolumns*0.75)
     img_copy = thresholded_image
 
     #Make Right End zero
     img_copy[:,approx:] = 0
     img_copy[:,0:(ncolumns-approx)] = 0
     img_copy[0:(nrows-approx_1),:] = 0
+
     return img_copy
 
 def getHoughLines(input_image):
+    # cv.imshow("Intermediate",input_image)
+    # cv.waitKey(0)
     hspace, angles, dist = hough_line(binary_image)
-    peak_hspace, angles, dist = hough_line_peaks(hspace, angles, dist)
+    maximum = np.amax(hspace)
+    # print(maximum)
+    peak_hspace, angles, dist = hough_line_peaks(hspace, angles,dist, threshold = maximum*0.38,min_distance = 20)
+    # print(peak_hspace)
 
     if(debug):
         for i in range(0, len(angles)):
@@ -155,17 +209,48 @@ def getHoughLines(input_image):
 
     # print(peak_hspace)
     lines = groupLines(angles,dist,peak_hspace)
-    print(lines[0].startpoint)
-    print(lines[0].endpoint)
-    print(lines[0].linescore)
-    # print(endpoints[1][0])
-    # for i in range(0, len(startpoints)):
-    #     cv.line(gray_image,endpoints[i][0],startpoints[i][0],(0,0,255),1)
-    # # # cv.line(gray_image,endpoint[0],startpoint[0],(0,0,255),2)
-    # cv.imshow("Result", gray_image)
-    # cv.waitKey(0)
-
+    # print(lines)
+    lines = checklanewidth(lines)
+    # print(lines)
+    getRansacLines(input_image,lines)
     return hspace, angles, dist
+
+
+
+def checklanewidth(lines):
+    number_of_lanes = len(lines)
+    #Sort Line Objects According to Starting Point
+    lines.sort(key = lambda x:x.startpoint[0])
+    # print(lines)
+
+    min_distance = 10 #approx
+    max_distance_two_side_lanes = 45 #approx
+    max_distance_two_edge_lanes = 70 #approx
+    x_points = []
+    for i in range(0, number_of_lanes):
+        x_max = max(lines[i].startpoint[0], lines[i].endpoint[0])
+        x_points.append(x_max)
+
+    x_points.sort()
+    # print(x_points)
+
+    if (number_of_lanes == 2):
+        #Calculate Diff array
+        diff_array = np.diff(x_points)
+        for i in range(0, len(diff_array)):
+            if(diff_array[i] < min_distance or diff_array[i] > max_distance_two_edge_lanes):
+                lines.pop(i+1)
+    elif(number_of_lanes == 3):
+        diff_array = np.diff(x_points)
+        for i in range(0, len(diff_array)):
+            if (diff_array[i] < min_distance or diff_array[i] > max_distance_two_side_lanes):
+                lines.pop(i+1)
+
+
+    return lines
+
+
+
 
 def getlocalMaxima(input_matrix,  threhold):
     rows = input_matrix.shape[0]
@@ -242,7 +327,7 @@ def groupLines(angles, dist, peak_hspace):
     for i in range(0, number_of_lines):
         line = Line(startpoints[i][0],endpoints[i][0], peak_hspace[0])
         lines.append(line)
-
+    # print(lines)
     return lines
 
 
@@ -253,7 +338,7 @@ def groupLines(angles, dist, peak_hspace):
 
 
 #Take Input Test Image
-input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_0.png")
+input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_3.png")
 
 # if(debug):
 #     cv.imshow("Input_Image", input_image)
@@ -310,12 +395,6 @@ if(debug):
       cv.imshow("Result", binary_image)
       cv.waitKey(0)
 hspace, angles, dist = getHoughLines(ROI_image)
-# print(angles)
-# print(dist)
-# groupLines(hspace,binary_image)
-# print(angles)
-# print(dist)
-
 
 
 
