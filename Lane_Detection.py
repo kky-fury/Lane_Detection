@@ -6,6 +6,7 @@ from skimage.transform import hough_line, hough_line_peaks
 import scipy
 import math as mt
 import operator
+from skimage import io
 
 np.set_printoptions(threshold=np .nan)
 
@@ -223,6 +224,7 @@ def getHoughLines(input_image):
         # print(x1)
         # print(y1)
             cv.line(gray_image,(x1,y1),(x2,y2),(0,0,255),1)
+        io.imsave("/home/mohak/Process_Pipeline/Initial_Guess_For_Ransac.png",gray_image)
         cv.imshow("Result", gray_image)
         cv.waitKey(0)
 
@@ -357,18 +359,18 @@ def groupLines(angles, dist, peak_hspace):
 
 
 #Take Input Test Image
-input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_8.png")
+input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_1.png")
 
-# if(debug):
-#     cv.imshow("Input_Image", input_image)
-#     cv.waitKey(0)
+if(debug):
+    cv.imshow("Input_Image", input_image)
+    cv.waitKey(0)
 
 #GrayScale Image
 gray_image = cv.cvtColor(input_image,cv.COLOR_BGR2GRAY)
 
-# if(debug):
-#     cv.imshow("Gray_Image", gray_image)
-#     cv.waitKey(0)
+if(debug):
+    cv.imshow("Gray_Image", gray_image)
+    cv.waitKey(0)
 
 #Preprocess Image
 filtered_image = FilterLines(gray_image,2,2,2,10)
@@ -376,11 +378,13 @@ filtered_image = FilterLines(gray_image,2,2,2,10)
 if(debug):
     cv.imshow("Gray_Image", filtered_image)
     cv.waitKey(0)
+    io.imsave("/home/mohak/Process_Pipeline/filtered_image.png",filtered_image)
 
 #Threshold Image
 thresholded_image = getQuantile(filtered_image,0.985)
 
 if(debug):
+    io.imsave("/home/mohak/Process_Pipeline/thresholded_image.png",thresholded_image)
     cv.imshow("Gray_Image", thresholded_image)
     cv.waitKey(0)
 
@@ -392,7 +396,7 @@ thresholded_image = thresholdlower(thresholded_image,0)[1]
 clear_image = getclearImage(thresholded_image)
 
 if(debug):
-    # cv.imshow("Cleaned_Image", thresholded_image[:,150:])
+    cv.imshow("Cleaned_Image", thresholded_image[:,150:])
     cv.imshow("Cleaned_Image", clear_image)
     cv.waitKey(0)
 
@@ -411,6 +415,7 @@ ROI_height = int(0.45*image_height)
 ROI_image = binary_image[ROI_height:,:]
 
 if(debug):
+      io.imsave("/home/mohak/Process_Pipeline/binary_image_after_ROI.png", binary_image)
       cv.imshow("Result", binary_image)
       cv.waitKey(0)
 hspace, angles, dist = getHoughLines(ROI_image)
