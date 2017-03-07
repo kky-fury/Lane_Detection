@@ -13,7 +13,7 @@ Code Files:<br />
 	3. Inverse_Perspective_Mapping.py - Generic code for obtaining the BEV of an image. Calculates the homography matrix by using the extrinc and intrinsic camera parameters.
 
 To Do-
-For detecting Curved Lanes - Ransac curve Fitting
+For detecting Curved Lanes - Curve fitting using Ransac
 
 Lane Detection for Test Images:
 
