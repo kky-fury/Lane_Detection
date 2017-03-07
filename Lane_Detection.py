@@ -10,8 +10,8 @@ from skimage import io
 
 np.set_printoptions(threshold=np .nan)
 
-# debug = True
-debug = False
+debug = True
+# debug = False
 
 class Line:
     startpoint = []
@@ -415,8 +415,8 @@ ROI_height = int(0.45*image_height)
 ROI_image = binary_image[ROI_height:,:]
 
 if(debug):
-      io.imsave("/home/mohak/Process_Pipeline/binary_image_after_ROI.png", binary_image)
-      cv.imshow("Result", binary_image)
+      io.imsave("/home/mohak/Process_Pipeline/binary_image_after_ROI.png", ROI_image)
+      cv.imshow("Result",  ROI_image)
       cv.waitKey(0)
 hspace, angles, dist = getHoughLines(ROI_image)
 
