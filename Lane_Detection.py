@@ -82,18 +82,34 @@ def getRansacLines(thresholded_image, lines):
     for i in range(0, len(lines)):
         # print(lines[i].list_x_y_points)
         data = np.array(lines[i].list_x_y_points)
-        line = cv.fitLine(data,cv.DIST_WELSCH,0,0.01,0.01)
+        line = cv.fitLine(data,cv.DIST_FAIR,0,0.01,0.01)
         mult = max(gray_image.shape[0], gray_image.shape[1])
         startpoint = (int(line[2] - mult*line[0]), int(line[3] - mult*line[1]))
         endpoint = (int(line[2]  + mult*line[0]), int(line[3] + mult*line[1]))
         points = cv.clipLine((0,0,gray_image.shape[1],gray_image.shape[0]), startpoint, endpoint)
-        cv.line(gray_image, points[1], points[2],(0, 0, 255),1)
+        x_limit_max = max(lines[i].startpoint[0], lines[i].endpoint[0])
+        x_limit_min = min(lines[i].startpoint[0], lines[i].endpoint[0])
+        points = [list(i) for i in points[1:]]
+        # print(points[][0])
+        for i in range(0, len(points)):
+            if(points[i][0] < x_limit_min ):
+                points[i][0] = x_limit_min
+            elif(points[i][0] > x_limit_max):
+                points[i][0] = x_limit_max
+        # print(points)
+        cv.line(gray_image, tuple(points[0]), tuple(points[1]),(0, 0, 255),2)
 
-    # print(line)
-    cv.imshow("Result", gray_image)
-    cv.waitKey(0)
+    # # print(line)
+    # cv.imshow("Result", gray_image)
+    # cv.waitKey(0)
+    #Write Image
+    cv.imwrite("/home/mohak/Lane_Detection_Result/image_8.png", gray_image)
+
 
 def intializepointsinROI(x_y_points, lines):
+    # for i in range(0, len(lines)):
+    #     print(lines[i].startpoint)
+    #     print(lines[i].endpoint)
 
     # threshold = x_limit_max
     for i in range(0, len(lines)):
@@ -101,16 +117,21 @@ def intializepointsinROI(x_y_points, lines):
         # print(lines[i].endpoint)
         x_limit_max = max(lines[i].startpoint[0], lines[i].endpoint[0])
         x_limit_min = min(lines[i].startpoint[0], lines[i].endpoint[0])
-        threshold = x_limit_max - x_limit_min
-        print(threshold)
-        search_range = np.arange(x_limit_min, x_limit_min + threshold)
-        # print(search_range)
+        # threshold = x_limit_max - x_limit_min
+        # print(threshold)
+        search_range = np.arange(x_limit_min-1, x_limit_max+1)
+        # print(search_rangenge)
         points = [x for x in x_y_points if  x[0] in search_range]
         lines[i].list_x_y_points = points
         # print(lines[i].list_x_y_points)
 
 
-
+#The fucntion gets the specified quantile value
+#from the input image
+#Param:-
+#input_image - Filtered_Image
+#qtile - Quantile Threshold
+#
 
 def getQuantile(input_image, qtile):
     number_rows = input_image.shape[0]
@@ -118,7 +139,6 @@ def getQuantile(input_image, qtile):
 
     temp_image = np.reshape(input_image,(1,number_rows*number_columns))
     quantile = getPoints(temp_image,qtile)
-    # print(quantile)
     output_image = thresholdlower(input_image,quantile)
     return output_image[1]
 
@@ -142,7 +162,6 @@ def getPoints(input_image, quantile):
     temp_image_1 = np.partition(temp_image,index)
     i1 = temp_image_1[[0],index]
     i2 = np.amin(temp_image_1[[0],index +1:])
-    # print(i2)
     return (i1*(1.0 - delta) + i2*delta)
 
 #Threshold Image
@@ -273,15 +292,15 @@ def getLineEndPoints(r, theta,img_size):
     startpoint = []
     endpoint = []
     if(mt.cos(theta) == 0):
-        xup = int(img_size[0] + 2)
-        xdown = int(img_size[0] + 2)
+        xup = int(img_size[0])
+        xdown = int(img_size[0])
     else:
         xup = int(r/mt.cos(theta))
         xdown = int((r-img_size[1]*mt.sin(theta))/mt.cos(theta))
 
     if(mt.sin(theta ) ==0):
-        yleft = int(img_size[1] + 2)
-        yright = int(img_size[1] + 2)
+        yleft = int(img_size[1])
+        yright = int(img_size[1])
     else:
         yleft = int(r/mt.sin(theta))
         yright = int((r-img_size[0]*mt.cos(theta))/mt.sin(theta))
@@ -338,7 +357,7 @@ def groupLines(angles, dist, peak_hspace):
 
 
 #Take Input Test Image
-input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_3.png")
+input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_8.png")
 
 # if(debug):
 #     cv.imshow("Input_Image", input_image)
@@ -361,11 +380,11 @@ if(debug):
 #Threshold Image
 thresholded_image = getQuantile(filtered_image,0.985)
 
-# if(debug):
-#     cv.imshow("Gray_Image", thresholded_image)
-#     cv.waitKey(0)
+if(debug):
+    cv.imshow("Gray_Image", thresholded_image)
+    cv.waitKey(0)
 
-#Clean Negetive parts of the Image
+# Clean Negetive parts of the Image
 thresholded_image = thresholdlower(thresholded_image,0)[1]
 # print(thresholded_image.shape)
 
