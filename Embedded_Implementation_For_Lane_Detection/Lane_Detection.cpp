@@ -68,8 +68,6 @@ void getQuantile(const gpu::GpuMat& src,gpu::GpuMat& dst, float  qtile)
 	int number_rows, number_columns;
 	number_rows = src.rows;
 	number_columns = src.cols;
-
-	//Try copying gpumat to vector
 	
 	Mat temp_image;
 	src.download(temp_image);
@@ -146,9 +144,108 @@ void thresholdlower(const gpu::GpuMat& src, gpu::GpuMat& dst,double threshold)
 	}	
 }
 
-void getclearImage(const gpu::GpuMat& src, gpu::GpuMat& dst)
+void getclearImage(gpu::GpuMat& src, gpu::GpuMat& dst)
 {
+	int number_rows, number_columns;
+
+	number_rows = src.rows;
+	number_columns = src.cols;
 	
+	/*
+	Mat image_to_process;
+	src.download(image_to_process);
+
+	if(debug)
+	{
+		cout<<number_rows<<endl;
+		cout<<number_columns<<endl;
+	}
+
+	int column_index = (int)(number_columns*0.75);
+	int row_index = (int)(number_rows*0.75);
+
+	//Clear Outer Columns to Zero
+	for(int i = 0;i<number_rows;i++)
+	{
+		for(int j = column_index;j<number_columns;j++)
+		{
+			image_to_process.at<float>(i,j) = float(0);
+			image_to_process.at<float>(i,(j-column_index)) = float(0);
+
+		}
+	}
+    
+	for(int i = 0;i<number_columns;i++)
+	{
+		for(int j =0;j<(number_rows-row_index);j++)
+		{
+			image_to_process.at<float>(j,i) = float(0); 
+
+		}
+
+	}
+
+	dst.upload(image_to_process);		
+	*/
+
+	//More Optimized Code Without Copying Image to host
+	
+	int column_index = (int)(number_columns*0.75);
+	int row_index = (int)(number_rows*0.75);
+
+	gpu::GpuMat temp_roi;
+
+	temp_roi = gpu::GpuMat(src, Rect(0,0,(number_columns-column_index),number_rows-1));
+	temp_roi.setTo(Scalar(0));
+
+	temp_roi = gpu::GpuMat(src, Rect(column_index,0,(number_columns-column_index-1),number_rows-1));
+	temp_roi.setTo(Scalar(0));
+	
+	temp_roi = gpu::GpuMat(src, Rect(0,0,number_columns-1,(number_rows- row_index)));
+	temp_roi.setTo(Scalar(0));
+
+	dst = src.clone();
+
+	if(debug)
+	{
+		Mat dst_host;
+		src.download(dst_host);
+		imshow("Result", dst_host);
+		waitKey(0);
+	}	
+
+}
+
+void getbinaryImage(const gpu::GpuMat& src, gpu::GpuMat& dst)
+{
+	double min, max ;	
+	gpu::minMax(src,&min,&max);
+
+	double threshold = (max - min)/2;
+	gpu::threshold(src, dst, threshold,1, THRESH_BINARY);
+
+
+}
+
+void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst)
+{
+	int number_rows, number_columns;
+
+	number_rows = src.rows; //400 ()
+	number_columns = src.cols;//200
+	
+	int roi_height = int(0.45*number_rows);
+	cout<<roi_height<<endl;	
+	dst = gpu::GpuMat(src, Rect(0,roi_height,number_columns-1, number_rows-roi_height));
+	
+	if(1)
+	{
+		Mat dst_host;
+		dst.download(dst_host);
+		imshow("Result", dst_host);
+		waitKey(0);
+	}
+
 
 
 }
@@ -239,8 +336,30 @@ int main(int argc, char* argv[])
 	}
 
 	/*Clear Image (Select ROI)*/
+	gpu::GpuMat cleared_image;
+	getclearImage(clear_thresholded_image, cleared_image);
 
+	if(debug)
+	{
+		Mat dst_host;
+		cleared_image.download(dst_host);
+		imshow("Result", dst_host);
+		waitKey(0);
+	}
 
+	gpu::GpuMat binary_image;
+	getbinaryImage(cleared_image, binary_image);
+		
+	if(debug)
+	{
+		Mat dst_host;
+		binary_image.download(dst_host);
+		imshow("Result", dst_host);
+		waitKey(0);
+	}
+
+	gpu::GpuMat roi_image;
+	selectROI(binary_image, roi_image);
 	
 
 }

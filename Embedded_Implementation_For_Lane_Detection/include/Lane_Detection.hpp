@@ -6,6 +6,7 @@
 #include<cuda.h>
 #include<vector>
 #include<math.h>
+#include<cstring>
 
 using namespace cv;
 using namespace std;
@@ -20,3 +21,9 @@ void getQuantile(const gpu::GpuMat& src, gpu::GpuMat& dst, float qtile);
 float getPoints(Mat& input_image, float quantile);
 
 void thresholdlower(const gpu::GpuMat& src, gpu::GpuMat& dst, double threshold);
+
+void getclearImage(gpu::GpuMat& src, gpu::GpuMat& dst);
+
+void getbinaryImage(const gpu::GpuMat& src, gpu::GpuMat& dst);
+
+void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst);
