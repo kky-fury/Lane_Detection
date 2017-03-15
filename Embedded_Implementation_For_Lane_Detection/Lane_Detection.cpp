@@ -235,10 +235,9 @@ void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst)
 	number_columns = src.cols;//200
 	
 	int roi_height = int(0.45*number_rows);
-	cout<<roi_height<<endl;	
 	dst = gpu::GpuMat(src, Rect(0,roi_height,number_columns-1, number_rows-roi_height));
 	
-	if(1)
+	if(debug)
 	{
 		Mat dst_host;
 		dst.download(dst_host);
@@ -246,6 +245,31 @@ void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst)
 		waitKey(0);
 	}
 
+
+
+}
+
+void getHoughLines(gpu::GpuMat& src)
+{
+	gpu::GpuMat lines;
+	src.convertTo(lines, CV_8U,255.0,0);
+	
+	/*double e1 = getTickCount();
+	gpu::HoughLines(src,lines,3,CV_PI/180,50,1,5);	
+	double e2 = getTickCount();
+	double time = (e2 -e1)/getTickFrequency();
+	cout<<time<<endl;
+   */
+
+
+
+	if(debug)
+	{
+		Mat dst_host;
+		lines.download(dst_host);
+		imshow("Result", dst_host);
+		waitKey(0);
+	}
 
 
 }
@@ -268,25 +292,23 @@ void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst)
 
 
 
-
-
-
-
-
 int main(int argc, char* argv[])
 {
 	/*Load Image*/
+
 	Mat src_host;
-	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_0.png");
-	
+
+	gpu::setDevice(0);
+
+	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_0.png");	
 	gpu::GpuMat input_image, gray_image;
 		
 	/*Upload Image on Gpu*/
 	input_image.upload(src_host);
 	
+
 	/*Convert Image to Gray*/
 	convertrgb2Gray(input_image, gray_image);
-
 
 	if(debug)
 	{
@@ -308,7 +330,7 @@ int main(int argc, char* argv[])
 		imshow("Result",dst_host);
 		waitKey(0);
 	}
-	
+
 	/*Threshold Image*/
 	gpu::GpuMat thresholded_image ;
 	getQuantile(filtered_image, thresholded_image,0.985);
@@ -360,7 +382,12 @@ int main(int argc, char* argv[])
 
 	gpu::GpuMat roi_image;
 	selectROI(binary_image, roi_image);
-	
 
+	/*Try with Hough Line Opencv*/
+
+	getHoughLines(roi_image);
+
+
+	
 }
 
