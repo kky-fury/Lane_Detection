@@ -27,3 +27,7 @@ void getclearImage(gpu::GpuMat& src, gpu::GpuMat& dst);
 void getbinaryImage(const gpu::GpuMat& src, gpu::GpuMat& dst);
 
 void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst);
+
+void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image);
+
+void displayvector(vector<float> &v);

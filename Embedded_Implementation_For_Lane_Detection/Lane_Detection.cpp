@@ -2,6 +2,15 @@
 bool debug=false;
 //bool debug = true;
 
+/*Utility Functions*/
+
+void displayvector(vector<float> &v)
+{
+	for(auto i: v)
+		cout<<i<<' ';
+
+}
+
 /*Convert Image to Gray on GPU*/
 void convertrgb2Gray(const gpu::GpuMat& src, gpu::GpuMat& dst)
 {
@@ -249,20 +258,92 @@ void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst)
 
 }
 
-void getHoughLines(gpu::GpuMat& src)
+void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
 {
-	gpu::GpuMat lines;
-	src.convertTo(lines, CV_8U,255.0,0);
-	
+	gpu::GpuMat lines, binary_image_8b;
+	src.convertTo(binary_image_8b, CV_8U,255.0,0);
+		
+	vector<Vec2f>lines_host;
+
+	//Vec2f lines_host;
+
 	/*double e1 = getTickCount();
 	gpu::HoughLines(src,lines,3,CV_PI/180,50,1,5);	
 	double e2 = getTickCount();
 	double time = (e2 -e1)/getTickFrequency();
 	cout<<time<<endl;
    */
+		
+	//gpu::HoughLines(binary_image_8b, lines, 1, CV_PI/180,65,1,10);
+	Mat binary_image;
+	binary_image_8b.download(binary_image);
+
+	HoughLines(binary_image, lines_host,1, CV_PI/180, 65 );	
+
+	Mat dst_host;
+	gray_image.download(dst_host);
+
+	
+	//gpu::HoughLinesDownload(lines, lines_host);
 
 
 
+	/*sort(lines_host.begin(),lines_host.end(),[](const Vec2f& a, const Vec2f& b){
+			
+			return a[0] < b[0]; 
+			});
+
+	*/
+	vector<float> dist;
+	vector<float> angles;
+	
+	for(int i = 0;i<lines_host.size();i++)
+	{
+		dist.push_back(lines_host[i][0]);
+		angles.push_back(lines_host[i][1]);
+	
+	}
+	
+
+	displayvector(dist);
+	displayvector(angles);
+
+	
+	
+	if(1)
+	{
+		for( int i = 0;i<lines_host.size();i++)
+		{
+			float rho = lines_host[i][0];
+			float theta = lines_host[i][1];
+			Point pt1, pt2;
+	
+			cout<<rho<<endl;
+			cout<<theta<<endl;
+
+			double a = cos(theta);
+			double b = sin(theta);
+
+			double x0 = a*rho;
+			double y0 = b*rho;
+
+			pt1.x  = (int)(x0 + 400*(-b));
+			pt1.y = (int)(y0 + 400*(a));
+			pt2.x = (int)(x0 - 400*(-b));
+			pt2.y = (int)(x0 - 400*(a));
+		
+			line(dst_host, pt1, pt2, (0,0,255),1);
+	
+		}
+
+		
+		imshow("Result", dst_host);
+		waitKey(0);
+		
+	}
+	
+
+	/*
 	if(debug)
 	{
 		Mat dst_host;
@@ -270,6 +351,8 @@ void getHoughLines(gpu::GpuMat& src)
 		imshow("Result", dst_host);
 		waitKey(0);
 	}
+
+	*/
 
 
 }
@@ -300,7 +383,7 @@ int main(int argc, char* argv[])
 
 	gpu::setDevice(0);
 
-	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_0.png");	
+	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_4.png");	
 	gpu::GpuMat input_image, gray_image;
 		
 	/*Upload Image on Gpu*/
@@ -382,12 +465,11 @@ int main(int argc, char* argv[])
 
 	gpu::GpuMat roi_image;
 	selectROI(binary_image, roi_image);
+	
 
 	/*Try with Hough Line Opencv*/
 
-	getHoughLines(roi_image);
-
-
+	getHoughLines(roi_image, gray_image);
 	
 }
 
