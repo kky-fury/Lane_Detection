@@ -3,15 +3,18 @@ import cv2 as cv
 from skimage import feature
 from collections import defaultdict
 from skimage.transform import hough_line, hough_line_peaks
-import scipy
 import math as mt
 import operator
 from skimage import io
+from GenerateBEV import BevParams
+from GenerateBEV import Calibration
+from GenerateBEV import BirdsEyeView
+
 
 np.set_printoptions(threshold=np .nan)
 
-debug = True
-# debug = False
+#debug = True
+debug = False
 
 class Line:
     startpoint = []
@@ -68,7 +71,7 @@ def FilterLines(input_image, width_kernel_x,width_kernel_y,sigmax,sigmay):
 #Get Specified quantile value from Input image
 
 def getRansacLines(thresholded_image, lines):
-
+    e1 = cv.getTickCount()
     test_image = np.transpose(thresholded_image)
     non_zero_points = np.nonzero(test_image)
     list_x_y_points = []
@@ -101,11 +104,16 @@ def getRansacLines(thresholded_image, lines):
         cv.line(gray_image, tuple(points[0]), tuple(points[1]),(0, 0, 255),2)
 
     # # print(line)
-    # cv.imshow("Result", gray_image)
-    # cv.waitKey(0)
+    #cv.imshow("Result", gray_image)
+    #cv.waitKey(0)
     #Write Image
-    cv.imwrite("/home/mohak/Lane_Detection_Result/image_8.png", gray_image)
-
+    e2 = cv.getTickCount()
+    time = (e2 -e1)/cv.getTickFrequency()
+    print("Time for Fitting line")
+    print(time)
+    #cv.imshow("Result", gray_image)
+    #cv.waitKey(0)
+    #cv.imwrite("/home/nvidia/test_image.png", gray_image)
 
 def intializepointsinROI(x_y_points, lines):
     # for i in range(0, len(lines)):
@@ -205,6 +213,7 @@ def getclearImage(thresholded_image):
 def getHoughLines(input_image):
     # cv.imshow("Intermediate",input_image)
     # cv.waitKey(0)
+    e1 = cv.getTickCount()
     hspace, angles, dist = hough_line(binary_image)
     maximum = np.amax(hspace)
     # print(maximum)
@@ -229,10 +238,15 @@ def getHoughLines(input_image):
         cv.waitKey(0)
 
     # print(peak_hspace)
-    lines = groupLines(angles,dist,peak_hspace)
+    lines = groupLines(angles,dist,peak_hspace) 
     # print(lines)
     lines = checklanewidth(lines)
-    # print(lines)
+    e2 = cv.getTickCount()
+    time = (e2 - e1)/cv.getTickFrequency()
+    print("Time for Initial Approximations")
+    print(time)
+   
+    #print(lines)
     getRansacLines(input_image,lines)
     return hspace, angles, dist
 
@@ -359,7 +373,49 @@ def groupLines(angles, dist, peak_hspace):
 
 
 #Take Input Test Image
-input_image = cv.imread("/home/mohak/IPM_test_images/IPM_test_image_1.png")
+
+#Generate IPM view in same file
+
+input_image = cv.imread("/home/nvidia/Lane_Detection/Original_Images/img_1.png",cv.IMREAD_COLOR)
+e1 = cv.getTickCount() 
+#Create BEV object
+bev = BirdsEyeView()
+
+#Camera Extrinsic Parameters
+P2 = np.array([[7.070912000000e+02,0.000000000000e+00,6.018873000000e+02,4.688783000000e+01],
+              [ 0.000000000000e+00, 7.070912000000e+02, 1.831104000000e+02, 1.178601000000e-01],
+              [0.000000000000e+00, 0.000000000000e+00, 1.000000000000e+00, 6.203223000000e-03]],dtype=np.float64)
+
+R0_rect = np.array([[9.999280000000e-01,8.085985000000e-03,-8.866797000000e-03],
+                   [-8.123205000000e-03, 9.999583000000e-01,-4.169750000000e-03],
+                 [8.832711000000e-03,4.241477000000e-03,9.999520000000e-01]], dtype = np.float64)
+
+Tr_cam_to_road = np.array([[9.998675805558e-01, -1.466259288355e-02, -7.059878200710e-03, 2.879062998184e-02],
+                          [1.469236542096e-02, 9.998832652489e-01, 4.183808189280e-03, -1.630891383620e+00],
+                          [6.997709379545e-03, -4.286980067163e-03, 9.999662905842e-01,3.368200142169e-01]], dtype =np.float64)
+
+	
+
+bev.setup(P2,R0_rect,Tr_cam_to_road)
+output_image = bev.compute(input_image)
+e2 = cv.getTickCount()
+time = (e2-e1)/cv.getTickFrequency()
+print("Time for IPM")
+print(time)
+
+#input_image = cv.imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_4.png")
+
+input_image = output_image
+
+
+#Input IPM image for Lane Detection
+#input_image = output_image
+#cv.imshow("Input_Image", input_image)
+#cv.waitKey(0)
+
+e5 = cv.getTickCount()
+#input_image = cv.imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_1.png")
+
 
 if(debug):
     cv.imshow("Input_Image", input_image)
@@ -418,6 +474,11 @@ if(debug):
       io.imsave("/home/mohak/Process_Pipeline/binary_image_after_ROI.png", ROI_image)
       cv.imshow("Result",  ROI_image)
       cv.waitKey(0)
+
+e6 = cv.getTickCount()
+time = (e6-e5)/cv.getTickFrequency()
+print("Pre-processing Time")
+print(time)
 hspace, angles, dist = getHoughLines(ROI_image)
 
 
