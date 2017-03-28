@@ -190,7 +190,10 @@ void getclearImage(gpu::GpuMat& src, gpu::GpuMat& dst)
 		{
 			image_to_process.at<float>(j,i) = float(0); 
 
-		}
+		}	pt1.x  = (int)(x0 + 400*(-b));
+			pt1.y = (int)(y0 + 400*(a));
+			pt2.x = (int)(x0 - 400*(-b));
+			pt2.y = (int)(x0 - 400*(a));
 
 	}
 
@@ -244,12 +247,14 @@ void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst)
 	number_columns = src.cols;//200
 	
 	int roi_height = int(0.45*number_rows);
-	dst = gpu::GpuMat(src, Rect(0,roi_height,number_columns-1, number_rows-roi_height));
+	cout<<roi_height<<endl;
+	dst = gpu::GpuMat(src, Rect(0,176, 192, number_rows-176));
 	
 	if(debug)
 	{
 		Mat dst_host;
 		dst.download(dst_host);
+		imwrite("/home/nvidia/Binary_test_image_for_cuda_ht.png", dst_host);
 		imshow("Result", dst_host);
 		waitKey(0);
 	}
@@ -260,10 +265,10 @@ void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst)
 
 void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
 {
-	gpu::GpuMat lines, binary_image_8b;
+	gpu::GpuMat binary_image_8b;
 	src.convertTo(binary_image_8b, CV_8U,255.0,0);
 		
-	vector<Vec2f>lines_host;
+	//vector<Vec2f>lines_host;
 
 	//Vec2f lines_host;
 
@@ -275,7 +280,7 @@ void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
    */
 		
 	//gpu::HoughLines(binary_image_8b, lines, 1, CV_PI/180,65,1,10);
-	Mat binary_image;
+	/*Mat binary_image;
 	binary_image_8b.download(binary_image);
 
 	HoughLines(binary_image, lines_host,1, CV_PI/180, 65 );	
@@ -283,7 +288,7 @@ void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
 	Mat dst_host;
 	gray_image.download(dst_host);
 
-	
+	*/
 	//gpu::HoughLinesDownload(lines, lines_host);
 
 
@@ -294,7 +299,7 @@ void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
 			});
 
 	*/
-	vector<float> dist;
+	/*vector<float> dist;
 	vector<float> angles;
 	
 	for(int i = 0;i<lines_host.size();i++)
@@ -303,14 +308,14 @@ void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
 		angles.push_back(lines_host[i][1]);
 	
 	}
-	
+	*/	
 
-	displayvector(dist);
+	/*displayvector(dist);
 	displayvector(angles);
 
 	
-	
-	if(1)
+  	 	
+ 	if(1)
 	{
 		for( int i = 0;i<lines_host.size();i++)
 		{
@@ -341,7 +346,7 @@ void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
 		waitKey(0);
 		
 	}
-	
+	*/
 
 	/*
 	if(debug)
@@ -354,6 +359,27 @@ void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
 
 	*/
 
+	
+	Mat binary_image;
+	binary_image_8b.download(binary_image);
+
+	/*if(debug)
+	{		
+		imshow("Result", binary_image);
+		waitKey(0);
+	}
+
+
+
+	
+	uchar *data = binary_image.data;
+	cout<<sizeof(data)<<endl;
+
+	*/
+	//cout<<(int)*(data)<<endl;
+	imshow("Test",binary_image);
+	waitKey(0);
+	imwrite("/home/nvidia/Binary_test_image_for_cuda_ht.png",binary_image);
 
 }
 
@@ -381,17 +407,19 @@ int main(int argc, char* argv[])
 
 	Mat src_host;
 
-	gpu::setDevice(0);
-
-	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_4.png");	
+	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_1.png");	
 	gpu::GpuMat input_image, gray_image;
 		
 	/*Upload Image on Gpu*/
 	input_image.upload(src_host);
 	
+	double e1 = getTickCount();
 
 	/*Convert Image to Gray*/
 	convertrgb2Gray(input_image, gray_image);
+	Mat gray_image_host ;
+	gray_image.download(gray_image_host);
+	imwrite("/home/nvidia/gray_image.png",gray_image_host);
 
 	if(debug)
 	{
@@ -466,6 +494,9 @@ int main(int argc, char* argv[])
 	gpu::GpuMat roi_image;
 	selectROI(binary_image, roi_image);
 	
+	double e2 = getTickCount();
+	double time = (e2 -e1)/getTickFrequency();
+	cout<<time<<endl;
 
 	/*Try with Hough Line Opencv*/
 
