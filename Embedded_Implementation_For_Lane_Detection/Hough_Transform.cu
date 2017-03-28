@@ -119,6 +119,7 @@ int getMaximum(unsigned int* const array, int width)
 */
 
 __device__ static int g_counter;
+__device__ static int g_counter_lines;
 extern __shared__ int shmem[];
 
 __global__ void getNonzeroEdgepoints(unsigned char const* const image, unsigned int* const list)
@@ -186,7 +187,7 @@ __global__ void getNonzeroEdgepoints(unsigned char const* const image, unsigned 
 
 }
 
-__global__ void getLines(unsigned int* const list, const int count, int*
+__global__ void fillHoughSpace(unsigned int* const list, const int count, int*
 		hough_space,const float irho, const float theta, const int numrho)
 {
 
@@ -194,14 +195,17 @@ __global__ void getLines(unsigned int* const list, const int count, int*
 	for(int i =threadIdx.x; i< numrho + 1;i+=blockDim.x)
 		smem[i] = 0;
 	__syncthreads();
+	
 
 	const int n = blockIdx.x;
 	const float ang = n*theta;
 	
-	printf("Angle Values : %f \n", ang);
-//	printf("Inside Kernel");
+	//printf("The angle value of n is %d \n", blockIdx.x);
+
+	//printf("Angle Values : %f \n", ang);
+	//printf("Inside Kernel");
 	
-	/*
+	
 	float sinVal;
 	float cosVal;
 
@@ -214,13 +218,25 @@ __global__ void getLines(unsigned int* const list, const int count, int*
 	for(int i  = threadIdx.x; i<count; i+= blockDim.x)
 	{
 		const unsigned int val = list[i];
-		const int x = (val & 0x0000FFFF);
-		const int y = (val>>16) & 0x0000FFFF;
 
-
+		const int x = (val & 0xFFFF);
+		const int y = (val >> 16) & 0xFFFF;
+		int r = __float2int_rn(x*cosVal + y*sinVal);
+		//printf("The value of x %d and the value of y %d : the value of r %d \n",x,y,r);
+		r += shift;
+		
+		atomicAdd(&smem[r+1],1);
 	}
 	
-	*/
+	__syncthreads();
+
+	int* hrow = hough_space + (n+1)*(numrho + 2);
+	for(int i = threadIdx.x ;i< numrho + 1; i+=blockDim.x)
+	{	
+		//printf("value of shared_memory at %d is %d \n",i,smem[i]);
+		hrow[i] = smem[i];
+	}
+	
 
 }
 
@@ -235,10 +251,61 @@ __global__ void getLines(unsigned int* const list, const int count, int*
 }
 
 */
+
+
+__global__ void getLines(const int * hough_space, float2* lines, int* votes, const int
+		maxLines, const float rho, const float theta, const int threshold, const
+		int numrho, const int rhspace)
+{
+	
+	const int r = blockIdx.x*blockDim.x + threadIdx.x;
+	const int n = blockIdx.y*blockDim.y + threadIdx.y;
+	
+	
+
+	if(r >=numrho || n >=rhspace -2)
+	{
+		return;
+	}
+
+	const int curVotes = *(hough_space + (n+1)*(numrho + 2)+ (r+1));
+
+	if(curVotes > threshold && curVotes > *(hough_space + (n+1)*(numrho + 2) +
+				r) && curVotes >= *(hough_space + (n+1)*(numrho +2) + (r+2)) &&
+			curVotes > *(hough_space + n*(numrho +2) + (r+1)) && curVotes >=
+			*(hough_space + (n+2)*(numrho + 2) +  (r+1)))
+	{
+		const float radius = (r - (numrho -1)*0.5f)*rho;
+		const float angle = n*theta;
+
+		const int index = atomicAdd(&g_counter_lines,1);
+		if(index < maxLines)
+		{
+			printf("index Value - %d \n", index);
+			printf("Current Votes - %d \n", curVotes);
+			printf("radius %f and angle %f \n", radius, angle);
+			*(lines + index) = make_float2(radius, angle);
+			*(votes + index) = curVotes;
+
+		}
+		
+
+
+	}
+
+
+
+
+}
+
 void houghTransform(unsigned char const* const edges,const int numangle, const
 		int numrho,float thetaStep, float
 		rStep)
 {
+		/*definr threshold*/
+		
+		const int threshold = 50;
+
 		unsigned char* gimage;	
 		unsigned int* glist; 
 
@@ -323,8 +390,10 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 			{	
 				unsigned int const q_value = clist[i];
 				cout<<"q_value : "<<q_value<<endl;
-				unsigned int const x = (q_value & 0x0000FFFF);
-				unsigned int const y = (q_value >> 16) & 0x0000FFFF;
+				const int x = (q_value & 0xFFFF);
+				const int y = (q_value >> 16 ) & 0xFFFF;
+				//unsigned int const x = (q_value & 0x0000FFFF);
+				//unsigned int const y = (q_value >> 16) & 0x0000FFFF;
 				cout<<"coordinate ("<<x<<","<<y<<")"<<endl;
 				cout<<"Value at coordinate :"<<(int)*(edges + y*IMG_WIDTH + x)<<endl;
 			}
@@ -336,8 +405,9 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		int hough_size = (numangle + 2)*(numrho + 2);	
 		int rhspace = numangle + 2;
 		int colhspace = numrho + 2;
-		int* hough_space = (int*)calloc(hough_size, sizeof(int));
 		
+		cout<<"rows : "<<rhspace<<endl;
+
 		const dim3 block(1024);
 		const dim3 grid(rhspace -2);
 
@@ -369,9 +439,8 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 			exit(EXIT_FAILURE);
 		}
 
-		//cudaFuncSetCacheConfig(getLines,cudaFuncCachePreferShared);
 		
-		getLines<<<grid,block,smemSize>>>(glist, totalCount,d_hough_space, 1.0f/
+		fillHoughSpace<<<grid,block, smemSize>>>(glist, totalCount,d_hough_space, 1.0f/
 				rStep, thetaStep, colhspace -2);
 		
 		c_err = cudaGetLastError();	
@@ -383,10 +452,151 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 
 		cudaDeviceSynchronize();
 
+	
+		if(debug)
+		{
+			int* hough_space = (int*)malloc(hough_size*sizeof(int));
+			c_err = cudaMemcpy(hough_space, d_hough_space, hough_size*sizeof(int),
+					cudaMemcpyDeviceToHost);
 		
+			if(c_err != cudaSuccess)
+			{
+				printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
+					__FILE__,__LINE__);
+				exit(EXIT_FAILURE);
+			}
+
+			//cout<<*(hough_space + 0)<<endl;	
+		
+			for(int i =0;i<rhspace;i++)
+			{	
+				for(int j =0;j<colhspace;j++)
+				{
+					cout<<*(hough_space + i*colhspace +j)<<"\t";
+	
+				}
+			
+				cout<<endl;
+
+			}
+		}
+	
+
+		int maxLines = 3;
+			
+		float2* d_lines;
+		int* d_votes;
+	
+
+		c_err = cudaMalloc((void**)&d_lines,maxLines*sizeof(float2));
+		
+		if(c_err != cudaSuccess)
+		{
+			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
+				__FILE__,__LINE__);
+			exit(EXIT_FAILURE);
+		}
+	
+		c_err = cudaMalloc((void**)&d_votes, maxLines*sizeof(int));
+		
+		if(c_err != cudaSuccess)
+		{
+			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
+				__FILE__,__LINE__);
+			exit(EXIT_FAILURE);
+		}
+
+		void *counterPtr_lines;			
+		cudaGetSymbolAddress(&counterPtr_lines, g_counter_lines);
+		
+		c_err = cudaMemset(counterPtr_lines, 0, sizeof(int));
+		
+		if(c_err != cudaSuccess)
+		{
+			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
+				__FILE__,__LINE__);
+			exit(EXIT_FAILURE);
+		}
+
+		const dim3 block_1(32,8);
+		const int blocks_x = ((colhspace - 2 + block_1.x - 1)/(block_1.x));
+		const int blocks_y = ((rhspace - 2 + block_1.y -1 )/(block_1.y));
+		const dim3 grid_1(blocks_x, blocks_y);
+			
+		
+		cudaFuncSetCacheConfig(getLines, cudaFuncCachePreferL1);
+
+		getLines<<<grid_1, block_1>>>(d_hough_space, d_lines, d_votes, maxLines,
+				rStep, thetaStep, threshold, colhspace -2, rhspace);
+
+	
+		c_err = cudaGetLastError();
+		if(c_err != cudaSuccess)
+		{
+			printf("Error: %s\n", cudaGetErrorString(c_err));
+		
+		}	
+
+		
+		cudaDeviceSynchronize();
+
+		int countlines;
+
+		c_err = cudaMemcpy(&countlines, counterPtr_lines, sizeof(int),
+				cudaMemcpyDeviceToHost);
+
+		if(c_err != cudaSuccess)
+		{
+			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
+				__FILE__,__LINE__);
+			exit(EXIT_FAILURE);
+		}
+		
+		cout<<"totalCount of lines"<<countlines<<endl;	
+		
+		countlines = min(countlines, maxLines);
+	
+		/*
+		float2* lines = (float2*)malloc(maxLines*sizeof(float2)); 
+		int* votes = (int*)malloc(maxLines*sizeof(int));
+
+		c_err = cudaMemcpy(&lines, d_lines, maxLines*sizeof(float2),
+				cudaMemcpyDeviceToHost);
+
+		if(c_err != cudaSuccess)
+		{
+			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
+				__FILE__,__LINE__);
+			exit(EXIT_FAILURE);
+		}
+	
+		
+		c_err = cudaMemcpy(&votes, d_votes, maxLines*sizeof(int),
+				cudaMemcpyDeviceToHost);
+		if(c_err != cudaSuccess)
+		{
+			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
+				__FILE__,__LINE__);
+			exit(EXIT_FAILURE);
+		}
+		
+		//cout<<*(lines + 0)<<endl;
+		//cout<<(lines)->x<<endl;
+		*/
+		//cout<<"votes"<<*(votes + 0)<<endl;
+		/*
+		for(int i = 0;i<countlines;i++)
+		{
+			cout<<"rho"<<lines[i].x<<endl;
+			cout<<"theta"<<lines[i].y<<endl;
+				
+		}
+		*/
+
 
 
 }
+
 
 
 
@@ -404,8 +614,39 @@ int main(int argc, char* argv[])
 
 	Mat src_host = imread("/home/nvidia/Binary_test_image_for_cuda_ht.png",
 			CV_8UC1);
-	cout<<"cols"<<src_host.cols<<endl;
-	cout<<"rows"<<src_host.rows<<endl;
+
+	Mat gray_image = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_1.png",0);
+	
+	if(debug)
+	{	
+		float theta_line = 3.124139;
+		float rho = -80.00;
+
+		Point pt1, pt2;
+	
+		double a = cos(theta_line);
+		double b = sin(theta_line);
+
+		double x0 = a*rho;
+		double y0 = b*rho;
+	
+		pt1.x = (int)(x0 + 400*(-b));
+		pt1.y = (int)(y0 + 400*(a));
+		pt2.x = (int)(x0 - 400*(-b));
+		pt2.y = (int)(x0 - 400*(a));
+	
+
+		line(gray_image, pt1,pt2, (0,0,255),1);
+		imshow("IMage", gray_image);
+		waitKey(0);
+	}
+		
+
+	if(debug)
+	{
+		cout<<"cols"<<src_host.cols<<endl;
+		cout<<"rows"<<src_host.rows<<endl;
+	}
 
 	//cout<<src_host<<endl;
 	//cout<<src_host.at<unsigned int>(48,34)<<endl;
@@ -413,7 +654,11 @@ int main(int argc, char* argv[])
 	//cout<<src_host<<endl;
 		
 	count = countNonZero(src_host);
-	cout<<count<<endl;
+	if(debug)
+	{
+		cout<<count<<endl;
+	
+	}
 
 	Size size = src_host.size();
 	int width = size.width;
@@ -460,7 +705,7 @@ int main(int argc, char* argv[])
 	const int numangle = std::round((thetaMax - thetaMin)/thetaStep);
 	const int numrho = std::round(rMax/rStep);
 
-	if(1)
+	if(debug)
 	{
 		cout<<numangle<<endl;
 		cout<<numrho<<endl;
@@ -494,9 +739,12 @@ int main(int argc, char* argv[])
 	//int count = countNonZero(src_host);
 	//cout<<count<<endl;	
 	
+	
 	houghTransform(edge_image, numangle, numrho,thetaStep, rStep);
 	
 	
+
+
 
 	
 
