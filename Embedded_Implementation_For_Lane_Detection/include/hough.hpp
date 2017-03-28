@@ -37,7 +37,9 @@ void print_image(unsigned char *image, int height, int width);
 
 __global__ void getNonzeroEdgepoints(unsigned char const* const,unsigned int* const);
 
-__global__ void getLines(unsigned int* const, const int, int*, const float, const float theta, const int numrho );
+__global__ void fillHoughSpace(unsigned int* const, const int, int*, const float, const float theta, const int numrho );
+
+__global__ void getLines(const int *, float2*, int*, const int, const float, const float, const int, const int, const int);
 //__global__ void Hough(unsigned char const* const, unsigned int const, unsigned int* const, unsigned int* const);
 
 //void houghTransform(unsigned char const * const,  unsigned int const,unsigned int* const,unsigned int* const );
