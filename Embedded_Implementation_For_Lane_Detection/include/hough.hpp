@@ -1,3 +1,6 @@
+#ifndef HOUGH_HPP
+#define HOUGH_HPP
+
 #include<iostream>
 #include<cstdio>
 #include"opencv2/opencv.hpp"
@@ -30,6 +33,7 @@
 using namespace std;
 using namespace cv;
 
+
 /*Function Definitions*/
 
 void print_array(float *, int);
@@ -49,3 +53,5 @@ void houghTransform(unsigned char const* const, const int, const int, float, flo
 void print_houghspace(unsigned int* const array, int width);
 
 int getMaximum(unsigned int* const array, int width);
+
+#endif
