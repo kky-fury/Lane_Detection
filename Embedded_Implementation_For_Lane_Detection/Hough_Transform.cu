@@ -270,10 +270,26 @@ __global__ void getLines(const int * hough_space, float2* lines, int* votes, con
 
 	const int curVotes = *(hough_space + (n+1)*(numrho + 2)+ (r+1));
 
-	if(curVotes > threshold && curVotes > *(hough_space + (n+1)*(numrho + 2) +
+	/*if(curVotes > threshold && curVotes > *(hough_space + (n+1)*(numrho + 2) +
 				r) && curVotes >= *(hough_space + (n+1)*(numrho +2) + (r+2)) &&
 			curVotes > *(hough_space + n*(numrho +2) + (r+1)) && curVotes >=
 			*(hough_space + (n+2)*(numrho + 2) +  (r+1)))
+	
+	*/
+	if(curVotes > *(hough_space + n*(numrho+2) + (r-1)) && 
+			curVotes > *(hough_space + n*(numrho + 2) + r) && 
+			curVotes > *(hough_space + n*(numrho + 2)+(r+1)) && 
+			curVotes > *(hough_space + n*(numrho + 2) + (r+2)) && 
+			curVotes > *(hough_space + n*(numrho+2) + (r+3)) && 
+			curVotes > *(hough_space + (n+1)*(numrho +2)+ r-1) && 
+			curVotes > *(hough_space + (n+1)*(numrho + 2) + r) && 
+			curVotes > *(hough_space +(n+1)*(numrho +2) + (r+2)) && 
+			curVotes > *(hough_space +(n+1)*(numrho +2) + (r+3)) && 
+			curVotes > *(hough_space +(n+2)*(numrho +2) + (r-1)) && 
+			curVotes > *(hough_space + (n+2)*(numrho +2) + r) && 
+			curVotes > *(hough_space + (n+2)*(numrho +2) + (r+1)) && 
+			curVotes > *(hough_space + (n+2)*(numrho +2) + (r+2)) && 
+			curVotes > *(hough_space + (n+2)*(numrho +2) + (r+3)) && curVotes > threshold)
 	{
 		const float radius = (r - (numrho -1)*0.5f)*rho;
 		const float angle = n*theta;
@@ -281,10 +297,13 @@ __global__ void getLines(const int * hough_space, float2* lines, int* votes, con
 		const int index = atomicAdd(&g_counter_lines,1);
 		if(index < maxLines)
 		{
-			printf("index Value - %d \n", index);
-			printf("Current Votes - %d \n", curVotes);
-			printf("radius %f and angle %f \n", radius, angle);
-			*(lines + index) = make_float2(radius, angle);
+			//printf("index Value - %d \n", index);
+			//printf("Current Votes - %d \n", curVotes);
+			//printf("radius %f and angle %f \n", radius, angle);
+			//*(lines + index) = make_float2(radius, angle);
+			(lines +  index)->x = radius;
+			(lines + index)->y = angle;
+			printf("value of radius - %f and value of angle - %f and curVotes - %d \n ", (lines +index)->x,(lines + index)->y, curVotes);
 			*(votes + index) = curVotes;
 
 		}
@@ -304,7 +323,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 {
 		/*definr threshold*/
 		
-		const int threshold = 50;
+		const int threshold = 39;
 
 		unsigned char* gimage;	
 		unsigned int* glist; 
@@ -482,7 +501,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		}
 	
 
-		int maxLines = 3;
+		int maxLines = 10;
 			
 		float2* d_lines;
 		int* d_votes;
@@ -556,11 +575,10 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		
 		countlines = min(countlines, maxLines);
 	
-		/*
-		float2* lines = (float2*)malloc(maxLines*sizeof(float2)); 
-		int* votes = (int*)malloc(maxLines*sizeof(int));
+		float2* lines = (float2*)malloc(countlines*sizeof(float2)); 
+		int* votes = (int*)malloc(countlines*sizeof(int));
 
-		c_err = cudaMemcpy(&lines, d_lines, maxLines*sizeof(float2),
+		c_err = cudaMemcpy(lines, d_lines, countlines*sizeof(float2),
 				cudaMemcpyDeviceToHost);
 
 		if(c_err != cudaSuccess)
@@ -571,7 +589,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		}
 	
 		
-		c_err = cudaMemcpy(&votes, d_votes, maxLines*sizeof(int),
+		c_err = cudaMemcpy(votes, d_votes, countlines*sizeof(int),
 				cudaMemcpyDeviceToHost);
 		if(c_err != cudaSuccess)
 		{
@@ -579,21 +597,40 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 				__FILE__,__LINE__);
 			exit(EXIT_FAILURE);
 		}
-		
-		//cout<<*(lines + 0)<<endl;
-		//cout<<(lines)->x<<endl;
-		*/
-		//cout<<"votes"<<*(votes + 0)<<endl;
-		/*
-		for(int i = 0;i<countlines;i++)
+	
+		if(debug)
 		{
-			cout<<"rho"<<lines[i].x<<endl;
-			cout<<"theta"<<lines[i].y<<endl;
+			Mat gray_image = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_4.png",0);
+		
+			for(int i =0;i<countlines;i++)
+			{
+				float theta_line = (lines + i)->y;
+				float rho = (lines + i)->x;
 				
+				cout<<"Rho - "<<rho<<"theta- "<<theta_line<<endl;
+				Point pt1, pt2;
+	
+				double a = cos(theta_line);
+				double b = sin(theta_line);
+
+				double x0 = a*rho;
+				double y0 = b*rho;
+	
+				pt1.x = (int)(x0 + 400*(-b));
+				pt1.y = (int)(y0 + 400*(a));
+				pt2.x = (int)(x0 - 400*(-b));
+				pt2.y = (int)(x0 - 400*(a));
+				
+				
+				line(gray_image, pt1,pt2, (255,0,0),1);
+				
+			}
+			imshow("IMage", gray_image);
+			waitKey(0);
+
 		}
-		*/
 
-
+				
 
 }
 
@@ -612,35 +649,8 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 int main(int argc, char* argv[])
 {
 
-	Mat src_host = imread("/home/nvidia/Binary_test_image_for_cuda_ht.png",
+	Mat src_host = imread("/home/nvidia/Binary_test_image_for_cuda_ht_1.png",
 			CV_8UC1);
-
-	Mat gray_image = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_1.png",0);
-	
-	if(debug)
-	{	
-		float theta_line = 3.124139;
-		float rho = -80.00;
-
-		Point pt1, pt2;
-	
-		double a = cos(theta_line);
-		double b = sin(theta_line);
-
-		double x0 = a*rho;
-		double y0 = b*rho;
-	
-		pt1.x = (int)(x0 + 400*(-b));
-		pt1.y = (int)(y0 + 400*(a));
-		pt2.x = (int)(x0 - 400*(-b));
-		pt2.y = (int)(x0 - 400*(a));
-	
-
-		line(gray_image, pt1,pt2, (0,0,255),1);
-		imshow("IMage", gray_image);
-		waitKey(0);
-	}
-		
 
 	if(debug)
 	{
