@@ -1,9 +1,5 @@
 /*
-*Test Code for hough transform using CUDA
 *Adapted From "Fast Hough Trasform on GPU's"
-*
-*
-*
 *
 */
 #include"hough.hpp"
@@ -11,9 +7,6 @@ bool debug = false;
 #define THREADS_X 	32
 #define THREADS_Y	4
 #define PIXELS_PER_THREAD 16
-#define BLOCKS_X 	(IMG_WIDTH  / (THREADS_X*PIXELS_PER_THREAD))
-#define BLOCKS_Y 	(IMG_HEIGHT / THREADS_Y)
-#define MAX_QUEUE_LENGTH (THREADS_X*THREADS_Y*PIXELS_PER_THREAD)
 
 
 void print_array(float *arr, int size)
@@ -270,12 +263,6 @@ __global__ void getLines(const int * hough_space, float2* lines, int* votes, con
 
 	const int curVotes = *(hough_space + (n+1)*(numrho + 2)+ (r+1));
 
-	/*if(curVotes > threshold && curVotes > *(hough_space + (n+1)*(numrho + 2) +
-				r) && curVotes >= *(hough_space + (n+1)*(numrho +2) + (r+2)) &&
-			curVotes > *(hough_space + n*(numrho +2) + (r+1)) && curVotes >=
-			*(hough_space + (n+2)*(numrho + 2) +  (r+1)))
-	
-	*/
 	if(curVotes > *(hough_space + n*(numrho+2) + (r-1)) && 
 			curVotes > *(hough_space + n*(numrho + 2) + r) && 
 			curVotes > *(hough_space + n*(numrho + 2)+(r+1)) && 
@@ -321,8 +308,16 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		int numrho,float thetaStep, float
 		rStep)
 {
-		/*definr threshold*/
+	/*	if(debug)
+		{
+			cudaEvent_t start, stop;
+			cudaEventCreate(&start);
+			cudaEventCreate(&stop);
+			cudaEventRecord(start,0);
 		
+		}
+	*/
+		/*Replace by maximum function using cuda*/
 		const int threshold = 39;
 
 		unsigned char* gimage;	
@@ -377,7 +372,6 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 
 		
 		dim3 dimBlock1(THREADS_X, THREADS_Y);
-		//dim3 dimGrid1(BLOCKS_X, BLOCKS_Y);
 		dim3 dimGrid1(1, 56);
 		getNonzeroEdgepoints<<<dimGrid1,dimBlock1>>>(gimage, glist);
 
@@ -608,7 +602,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 				float rho = (lines + i)->x;
 				
 				cout<<"Rho - "<<rho<<"theta- "<<theta_line<<endl;
-				Point pt1, pt2;
+				cv::Point pt1, pt2;
 	
 				double a = cos(theta_line);
 				double b = sin(theta_line);
@@ -630,9 +624,23 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 
 		}
 
-				
+	/*	
+		if(debug)
+		{	
+			cudaEventRecord(stop,0);
+			cudaEventSynchronize(stop);
+
+			float elapsed = 0;
+			cudaEventElapsedTime(&elapsed, start, stop);
+
+			cout<<"Elapsed Time"<<elapsed;
+		}
+	
+	*/
+
 
 }
+
 
 
 
