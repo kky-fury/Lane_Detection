@@ -154,11 +154,11 @@ matrix_t adjoint(matrix_t &vec_a)
 matrix_t inverse(matrix_t &vec_a)
 {
 	int vec_a_rows = vec_a.size();
-	cout<<vec_a_rows<<endl;
+	//cout<<vec_a_rows<<endl;
 	
 	double det = determinant(vec_a,vec_a_rows);
 	
-	cout<<setprecision(11)<<det<<endl;
+	//out<<setprecision(11)<<det<<endl;
 
 	
 	matrix_t adj(vec_a_rows, row_t(vec_a_rows,0));
@@ -273,7 +273,7 @@ void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_
 	}
 
 	this->Tr33 = this->Tr;
-
+	
 
 
 }
@@ -291,6 +291,7 @@ matrix_t Calibration::get_matrix33()
 BirdsEyeView::BirdsEyeView(float bev_res, double invalid_value, tuple<int,int> bev_xRange_minMax, tuple<int,int> bev_zRange_minMax)
 {
 
+	this->e1 = getTickCount();
 	this->calib = new Calibration();
 	this->bev_res = bev_res;
 	this->invalid_value = invalid_value;
@@ -320,21 +321,40 @@ void BirdsEyeView::compute(const Mat& image)
 	Size size = image.size();
 	this->imSize = make_tuple(size.width, size.height);
 	this->computeBEVLookUpTable();
-
+	this->transformImage2BEV(image);
 }
 
 void BirdsEyeView::computeBEVLookUpTable()
 {
-	row_t x_vec, z_vec;
+	//row_t x_vec, z_vec;
+	row_t z_vec;
 	float res = (this->bevParams)->bev_res;
 	int x_vec_length = 0, z_vec_length=0;
 
 	/*Populate x_vec*/
+	/*
 	for(double i = get<0>((this->bevParams)->bev_xLimits) + res/2; i< get<1>((this->bevParams)->bev_xLimits); i+=res)
 	{
 		x_vec.push_back(i);
 		x_vec_length++;
 	}
+
+	*/
+	/*Try with openMP*/
+	int size_temp = ((get<1>((this->bevParams)->bev_xLimits)) - (get<0>((this->bevParams)->bev_xLimits) + res/2))/res;
+	cout<<"Size is \t"<<size_temp<<endl;
+	row_t x_vec(size_temp + 1);
+	
+	double init_value =  get<0>((this->bevParams)->bev_xLimits) + res/2;
+
+	for(int i = 0 ;i<size_temp + 1;i++)
+	{
+		x_vec[i] = init_value;
+		init_value += res;
+	
+	}
+	
+	
 	/*Populate z_vec*/
 	for(double i = get<1>((this->bevParams)->bev_zLimits) - res/2; i > get<0>((this->bevParams)->bev_zLimits); i-=res)
 	{
@@ -353,13 +373,15 @@ void BirdsEyeView::computeBEVLookUpTable()
 	/*Populate Z and X mesh*/
 	int size = get<0>((this->bevParams)->bev_size)*get<1>((this->bevParams)->bev_size);
 
-	row_t z_mesh_vec, x_mesh_vec;
+	row_t z_mesh_vec(size), x_mesh_vec;
 	
 	for(int i = 0;i<size;i++)
 	{
 		int temp = i%z_vec_length;
-		z_mesh_vec.push_back(z_vec[temp]);	
+		//z_mesh_vec.push_back(z_vec[temp]);	
+		z_mesh_vec[i] = z_vec[temp];
 	}
+	
 
 	int i = 0;
 	while(i < x_vec_length)
@@ -367,21 +389,36 @@ void BirdsEyeView::computeBEVLookUpTable()
 		for(int j = 0;j< z_vec_length ;j++)
 		{
 			x_mesh_vec.push_back(x_vec[i]);
+			//x_mesh_vec[j] 
 		}
 		i++;
 	}
 	
+	double e1 = getTickCount();
+
 	this->world2image(x_mesh_vec, z_mesh_vec);
 	
+	double e2 = getTickCount();
+	double time = (e2 -e1)/getTickFrequency();
+	cout<<"time"<<time<<endl;
 	/*Copy all values except ones which are infinity*/
 	int length = this->xi_1.size();
 	row_t x_select(length), y_select(length);
 	
+//	this->im_u.resize(length);
+//	this->im_v.resize(length);
+	
+
+	/*auto it = copy_if((this->xi_1).begin(), (this->xi_1).end(), (this->im_u).begin(), [] (double i){return !(i == -numeric_limits<double>::infinity()) ;});
+	(this->im_u).resize(distance((this->im_u).begin(), it));
+	*/
+
 	auto it = copy_if((this->xi_1).begin(), (this->xi_1).end(), x_select.begin(), [] (double i){return !(i == -numeric_limits<double>::infinity()) ;});
-	x_select.resize(distance(x_select.begin(), it));
+	(x_select).resize(distance(x_select.begin(), it));
+
 
 	auto it_1 =  copy_if((this->yi_1).begin(), (this->yi_1).end(), y_select.begin(), [] (double i){return !(i == -numeric_limits<double>::infinity()) ;});
-	y_select.resize(distance(y_select.begin(), it_1));
+	(this->im_v).resize(distance(y_select.begin(), it_1));
 
 	if(debug)
 	{
@@ -389,7 +426,6 @@ void BirdsEyeView::computeBEVLookUpTable()
 		print1dvector(y_select);
 	}
 
-	cout<<size<<endl;
 	vector<int> z_index_vec, x_index_vec;
 	
 	vector<int> values_z(get<0>((this->bevParams)->bev_size));
@@ -421,8 +457,29 @@ void BirdsEyeView::computeBEVLookUpTable()
 		index++;	
 	}
 
-	for(const auto& i : x_index_vec)
-			cout<<i<<"\t";
+	vector<int> z_index_vec_sel, x_index_vec_sel;
+	int size_counter = 0;
+	
+	for(int i = 0;i<(this->xi_1).size();i++)
+	{
+		if(!((this->xi_1)[i] == (this->invalid_value)))
+		{
+			//cout<<"index_value \t"<<i<<endl;
+			//z_index_vec.erase(z_index_vec.begin() + i);		
+			//cout<<"z_index_value at that index \t"<<z_index_vec[i]<<endl;
+			z_index_vec_sel.push_back(z_index_vec[i]);
+			//this->bev_z_index.push_back(z_index_vec[i]);
+			x_index_vec_sel.push_back(x_index_vec[i]);
+			//this->bev_x_index.push_back(x_index_vec[i]);
+			size_counter++;
+		}
+
+	}
+
+	this->im_u = x_select;
+	this->im_v = y_select;
+	this->bev_x_index = x_index_vec_sel;
+	this->bev_z_index = z_index_vec_sel;
 
 
 }
@@ -458,7 +515,8 @@ void BirdsEyeView::world2image(row_t x_world, row_t z_world)
 
 	row_t::iterator i,j;
 
-
+	double e1 = getTickCount();
+	
 	for(i = (this->xi_1).begin(), j = (this->yi_1).begin(); i<(this->xi_1).end(); i++, j++)
 	{
 		if(!((*j >=1) & (*i>=1) & (*j <= get<1>(this->imSize)) & (*i <= get<0>(this->imSize))))
@@ -469,6 +527,12 @@ void BirdsEyeView::world2image(row_t x_world, row_t z_world)
 		}
 			
 	}
+
+	double e2 = getTickCount();
+
+	double time = (e2 -e1)/getTickFrequency();
+
+	cout<<"Time for loop"<<time<<endl;
 
 	if(debug)
 	{
@@ -481,8 +545,11 @@ void BirdsEyeView::world2image(row_t x_world, row_t z_world)
 
 matrix_t BirdsEyeView::world2image_uvMat(matrix_t& uvMat)
 {
+	double e1 = getTickCount();
 	matrix_t result = matrix_multiplication(this->Tr33, uvMat);
-	
+	double e2 = getTickCount();
+	double time = (e2 -e1)/getTickFrequency();
+	cout<<"Time for Multiplication"<<time<<endl;
 	if(debug)
 	{
 		//print2dvector(result);
@@ -494,21 +561,59 @@ matrix_t BirdsEyeView::world2image_uvMat(matrix_t& uvMat)
 	/*Convert to non - homogeneous*/
 	int rows = result.size();
 	int columns = result[0].size();
-	row_t last_row(columns,0); 	
+	//row_t last_row(columns,0); 	
 
-	copy(result[2].begin(), result[2].end(), last_row.begin());
+	//copy(result[2].begin(), result[2].end(), last_row.begin());
 	matrix_t result_non_homogeneous(rows, row_t(columns, 0));
 	
+
 	/*divide each row of result by last_row and store in result_non_homogeneous*/
-	transform(result[0].begin(), result[0].end(), last_row.begin(), result_non_homogeneous[0].begin(), divides<double>());
-	transform(result[1].begin(), result[1].end(), last_row.begin(), result_non_homogeneous[1].begin(), divides<double>());
-	transform(result[2].begin(), result[2].end(), last_row.begin(), result_non_homogeneous[2].begin(), divides<double>());
+	transform(result[0].begin(), result[0].end(), result[2].begin(), result_non_homogeneous[0].begin(), divides<double>());
+	transform(result[1].begin(), result[1].end(), result[2].begin(), result_non_homogeneous[1].begin(), divides<double>());
+	transform(result[2].begin(), result[2].end(), result[2].begin(), result_non_homogeneous[2].begin(), divides<double>());
 
 	return result_non_homogeneous;
 
 
 }
 
+void BirdsEyeView::transformImage2BEV(const Mat& image)
+{
+
+	row_t::const_iterator i,j;
+	//cout<<get<0>((this->bevParams)->bev_size)<<endl;
+	Mat output_image(get<0>((this->bevParams)->bev_size), get<1>((this->bevParams)->bev_size),CV_8UC1);
+	vector<int>::const_iterator m,k;
+
+	for(i = (this->im_u).begin(), j = (this->im_v).begin(), m = (this->bev_x_index).begin(), k = (this->bev_z_index).begin(); i != (this->im_u).end(); i++,j++,m++,k++)
+	{
+		int row = (int)*j -1;
+		int column = (int)*i -1;
+
+		int row_output_image  = (int)*k -1;
+		int column_output_image = (int)*m -1;
+		
+		output_image.at<unsigned char>(row_output_image, column_output_image) = image.at<unsigned char>(row, column);
+	
+
+	}
+	
+	if(debug)
+	{
+		cout<<(this->im_u).size();
+		cout<<(this->im_v).size();
+		cout<<(this->bev_z_index).size();
+		cout<<(this->bev_x_index).size();
+	}
+	this->e2  = getTickCount();
+	double time = (e2 -e1)/getTickFrequency();
+	cout<<"Time in sec \t"<<time<<endl;
+	imshow("result", output_image);
+	waitKey(0);
+
+
+
+}
 
 
 
@@ -540,8 +645,8 @@ matrix_t BirdsEyeView::world2image_uvMat(matrix_t& uvMat)
 int main(int argc, char* argv[])
 {
 
-	Mat test_image = imread("/home/nvidia/Lane_Detection/Original_Images/img_0.png");
-	cout<<test_image.rows<<endl;
+
+	Mat test_image = imread("/home/nvidia/Lane_Detection/Original_Images/img_0.png", CV_LOAD_IMAGE_GRAYSCALE);
 
 	if(debug)
 	{	
