@@ -13,7 +13,6 @@
 #include "opencv2/opencv.hpp"
 #include "opencv2/highgui.hpp"
 
-
 #define IMAGE_WIDTH	1242
 #define IMAGE_HEIGHT 375
 
@@ -92,6 +91,12 @@ class BirdsEyeView
 		matrix_t Tr33;
 		row_t xi_1;
 		row_t yi_1;
+		row_t im_u;
+		row_t im_v;
+		vector<int> bev_x_index;
+		vector<int> bev_z_index;
+		double e1;
+		double e2;
 
 		/*Constructor*/		
 		BirdsEyeView(float bev_res,double invalid_value, tuple<int, int> bev_xRange_minMax, tuple<int, int> bev_zRange_minMax);
@@ -101,6 +106,7 @@ class BirdsEyeView
 		void computeBEVLookUpTable();
 		void world2image(row_t x_world, row_t z_world);
 		matrix_t world2image_uvMat(matrix_t& uvMat);
+		void transformImage2BEV(const Mat& image);
 
 };
 
