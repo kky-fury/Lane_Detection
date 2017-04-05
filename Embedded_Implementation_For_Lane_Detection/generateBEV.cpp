@@ -49,11 +49,11 @@ matrix_t  matrix_multiplication(matrix_t const& vec_a, matrix_t  const& vec_b)
 	{
 		for(int j =0;j<vec_b_columns;++j)
 		{
-			R2_1.at(i).at(j) = 0;
+			R2_1[i][j] = 0;
 			for(int k = 0;k<vec_a_columns;++k)
 			{
-				R2_1.at(i).at(j) = R2_1.at(i).at(j) + (vec_a.at(i).at(k)*vec_b.at(k).at(j));
-				
+				//R2_1.at(i).at(j) = R2_1.at(i).at(j) + (vec_a.at(i).at(k)*vec_b.at(k).at(j));
+				R2_1[i][j] = R2_1[i][j] + (vec_a[i][k]*vec_b[k][j]);
 
 			}
 			
@@ -79,8 +79,8 @@ void getCofactor(matrix_t &vec_a, matrix_t &vec_b, int p,int q, int vec_a_rows)
 			
 			if( row != p && col !=q)
 			{
-				vec_b.at(i).at(j++) = vec_a.at(row).at(col);
-			
+				//vec_b.at(i).at(j++) = vec_a.at(row).at(col);
+				vec_b[i][j++] = vec_a[row][col];
 				if(j == vec_a_rows -1)
 				{
 					j = 0;
@@ -102,7 +102,7 @@ double determinant(matrix_t &vec_a, int n)
 	double D = 0.0;
 	
 	if(n==1)
-		return (double) vec_a.at(0).at(0);
+		return (double) vec_a[0][0];
 	
 	matrix_t temp(4, row_t(4));
 	//print2dvector(temp);
@@ -111,7 +111,8 @@ double determinant(matrix_t &vec_a, int n)
 	for( int f = 0;f< n;f++)
 	{
 		getCofactor(vec_a, temp,0,f,n);
-		D += sign*(vec_a.at(0).at(f))*(determinant(temp,n-1));
+		//D += sign*(vec_a.at(0).at(f))*(determinant(temp,n-1));
+		D += sign*(vec_a[0][f])*(determinant(temp,n-1));	
 		sign = -sign;
 
 	}
@@ -141,7 +142,7 @@ matrix_t adjoint(matrix_t &vec_a)
 				getCofactor(vec_a, temp, i, j, vec_a_rows);
 				sign  = ((i+j)%2==0)? 1: -1;
 
-				adj.at(j).at(i) = (sign)*(determinant(temp, vec_a_rows -1));
+				adj[j][i] = (sign)*(determinant(temp, vec_a_rows -1));
 				
 			}
 	}
@@ -171,7 +172,7 @@ matrix_t inverse(matrix_t &vec_a)
 		for( int j = 0;j<vec_a_rows;j++)
 		{
 			
-			inverse_matrix.at(i).at(j) = adj.at(i).at(j)/det;
+			inverse_matrix[i][j] = adj[i][j]/det;
 
 		}
 	}	
@@ -230,7 +231,7 @@ void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_
 
 	}
 
-	(this->R0_Rect).at(3).at(3) = 1.0;
+	(this->R0_Rect)[3][3] = 1.0;
 
 	if(debug)
 	{
@@ -243,7 +244,7 @@ void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_
 
 
 	Tr_cam_to_road.resize(4, row_t(4,0));
-	Tr_cam_to_road.at(3).at(3) = 1;
+	Tr_cam_to_road[3][3] = 1;
 	this->Tr_cam_to_road = Tr_cam_to_road;
 
 	/*
@@ -252,6 +253,7 @@ void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_
 	*/
 
 	//inverse(this->Tr_cam_to_road);
+
 	matrix_t Tr_cam_to_road_inverse	= inverse(this->Tr_cam_to_road);
 	this->Tr = matrix_multiplication(R2_1, Tr_cam_to_road_inverse);
 
@@ -326,42 +328,33 @@ void BirdsEyeView::compute(const Mat& image)
 
 void BirdsEyeView::computeBEVLookUpTable()
 {
-	//row_t x_vec, z_vec;
-	row_t z_vec;
 	float res = (this->bevParams)->bev_res;
-	int x_vec_length = 0, z_vec_length=0;
+	
+	int x_vec_length = ((get<1>((this->bevParams)->bev_xLimits)) - (get<0>((this->bevParams)->bev_xLimits) + res/2))/res + 1;
+	int z_vec_length = ((get<1>((this->bevParams)->bev_zLimits) - res/2) - (get<0>((this->bevParams)->bev_zLimits)))/res + 1;
 
-	/*Populate x_vec*/
-	/*
-	for(double i = get<0>((this->bevParams)->bev_xLimits) + res/2; i< get<1>((this->bevParams)->bev_xLimits); i+=res)
+	cout<<"Size is \t"<<z_vec_length<<endl;
+	
+	double init_value_x =  get<0>((this->bevParams)->bev_xLimits) + res/2;
+	double init_value_z = (get<1>((this->bevParams)->bev_zLimits) - res/2);
+	cout<<"Initial_Value"<<init_value_z<<endl;
+
+	row_t x_vec(x_vec_length), z_vec(z_vec_length);	
+	for(int i = 0 ;i<x_vec_length;i++)
 	{
-		x_vec.push_back(i);
-		x_vec_length++;
+		x_vec[i] = init_value_x;
+		init_value_x += res;
+		
+	}
+		
+	
+	for(int i = 0 ;i<z_vec_length;i++)
+	{
+		z_vec[i] = init_value_z;
+		init_value_z -= res;
 	}
 
-	*/
-	/*Try with openMP*/
-	int size_temp = ((get<1>((this->bevParams)->bev_xLimits)) - (get<0>((this->bevParams)->bev_xLimits) + res/2))/res;
-	cout<<"Size is \t"<<size_temp<<endl;
-	row_t x_vec(size_temp + 1);
 	
-	double init_value =  get<0>((this->bevParams)->bev_xLimits) + res/2;
-
-	for(int i = 0 ;i<size_temp + 1;i++)
-	{
-		x_vec[i] = init_value;
-		init_value += res;
-	
-	}
-	
-	
-	/*Populate z_vec*/
-	for(double i = get<1>((this->bevParams)->bev_zLimits) - res/2; i > get<0>((this->bevParams)->bev_zLimits); i-=res)
-	{
-		z_vec.push_back(i);
-		z_vec_length++;
-	}
-
 	if(debug)
 	{
 		print1dvector(x_vec);
@@ -400,19 +393,12 @@ void BirdsEyeView::computeBEVLookUpTable()
 	
 	double e2 = getTickCount();
 	double time = (e2 -e1)/getTickFrequency();
-	cout<<"time"<<time<<endl;
+	cout<<"time world 2 image"<<time<<endl;
 	/*Copy all values except ones which are infinity*/
 	int length = this->xi_1.size();
 	row_t x_select(length), y_select(length);
 	
-//	this->im_u.resize(length);
-//	this->im_v.resize(length);
 	
-
-	/*auto it = copy_if((this->xi_1).begin(), (this->xi_1).end(), (this->im_u).begin(), [] (double i){return !(i == -numeric_limits<double>::infinity()) ;});
-	(this->im_u).resize(distance((this->im_u).begin(), it));
-	*/
-
 	auto it = copy_if((this->xi_1).begin(), (this->xi_1).end(), x_select.begin(), [] (double i){return !(i == -numeric_limits<double>::infinity()) ;});
 	(x_select).resize(distance(x_select.begin(), it));
 
@@ -487,13 +473,18 @@ void BirdsEyeView::computeBEVLookUpTable()
 void BirdsEyeView::world2image(row_t x_world, row_t z_world)
 {
 	int size = x_world.size();
-	row_t y_world(size, 1.0);
+	row_t y_world(size, 1.0);	
 	matrix_t uv_mat(3, row_t(size, 0));
 
 	/*Populate UV Mat*/
+
+	double e3 = getTickCount();	
 	copy(x_world.begin(), x_world.end(), uv_mat[0].begin());
 	copy(z_world.begin(), z_world.end(), uv_mat[1].begin());
 	copy(y_world.begin(), y_world.end(), uv_mat[2].begin());
+	double e4 = getTickCount();
+	double time_copy =  (e4-e3)/getTickFrequency();
+	cout<<"Time Taken for copy"<<time_copy<<endl;
 	
 
 	matrix_t test = this->world2image_uvMat(uv_mat);
@@ -516,7 +507,7 @@ void BirdsEyeView::world2image(row_t x_world, row_t z_world)
 	row_t::iterator i,j;
 
 	double e1 = getTickCount();
-	
+
 	for(i = (this->xi_1).begin(), j = (this->yi_1).begin(); i<(this->xi_1).end(); i++, j++)
 	{
 		if(!((*j >=1) & (*i>=1) & (*j <= get<1>(this->imSize)) & (*i <= get<0>(this->imSize))))
@@ -527,6 +518,7 @@ void BirdsEyeView::world2image(row_t x_world, row_t z_world)
 		}
 			
 	}
+	
 
 	double e2 = getTickCount();
 
@@ -568,10 +560,13 @@ matrix_t BirdsEyeView::world2image_uvMat(matrix_t& uvMat)
 	
 
 	/*divide each row of result by last_row and store in result_non_homogeneous*/
+	e1 = getTickCount();
 	transform(result[0].begin(), result[0].end(), result[2].begin(), result_non_homogeneous[0].begin(), divides<double>());
 	transform(result[1].begin(), result[1].end(), result[2].begin(), result_non_homogeneous[1].begin(), divides<double>());
 	transform(result[2].begin(), result[2].end(), result[2].begin(), result_non_homogeneous[2].begin(), divides<double>());
-
+	e2 = getTickCount();
+	time = (e2 -e1)/getTickFrequency();
+	cout<<"Time for Transform Operations"<<time<<endl;
 	return result_non_homogeneous;
 
 
@@ -579,22 +574,24 @@ matrix_t BirdsEyeView::world2image_uvMat(matrix_t& uvMat)
 
 void BirdsEyeView::transformImage2BEV(const Mat& image)
 {
-
+	double e3,e4;
+	e3 = getTickCount();
 	row_t::const_iterator i,j;
 	//cout<<get<0>((this->bevParams)->bev_size)<<endl;
 	Mat output_image(get<0>((this->bevParams)->bev_size), get<1>((this->bevParams)->bev_size),CV_8UC1);
 	vector<int>::const_iterator m,k;
-
+	
+	unsigned char* i_im = image.data;
+	unsigned char* o_im = output_image.data; 
+	
 	for(i = (this->im_u).begin(), j = (this->im_v).begin(), m = (this->bev_x_index).begin(), k = (this->bev_z_index).begin(); i != (this->im_u).end(); i++,j++,m++,k++)
 	{
 		int row = (int)*j -1;
 		int column = (int)*i -1;
 
 		int row_output_image  = (int)*k -1;
-		int column_output_image = (int)*m -1;
-		
-		output_image.at<unsigned char>(row_output_image, column_output_image) = image.at<unsigned char>(row, column);
-	
+		int column_output_image = (int)*m -1;	
+		*(o_im + row_output_image*200 + column_output_image) = *(i_im + row*1242 + column);
 
 	}
 	
@@ -607,6 +604,7 @@ void BirdsEyeView::transformImage2BEV(const Mat& image)
 	}
 	this->e2  = getTickCount();
 	double time = (e2 -e1)/getTickFrequency();
+	double time_for_generating_op = (e2 -e3)/getTickFrequency();
 	cout<<"Time in sec \t"<<time<<endl;
 	imshow("result", output_image);
 	waitKey(0);
@@ -646,7 +644,7 @@ int main(int argc, char* argv[])
 {
 
 
-	Mat test_image = imread("/home/nvidia/Lane_Detection/Original_Images/img_0.png", CV_LOAD_IMAGE_GRAYSCALE);
+	Mat test_image = imread("/home/mohak/Downloads/Lane_Detection-master/Original_Images/img_0.png", CV_LOAD_IMAGE_GRAYSCALE);
 
 	if(debug)
 	{	
