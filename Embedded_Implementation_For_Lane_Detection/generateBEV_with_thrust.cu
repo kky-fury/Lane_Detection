@@ -18,6 +18,17 @@ struct checkSanity
 };
 */
 
+struct checkSanity
+{
+	__host__ __device__
+		bool operator()(const float x)
+		{
+			return (x >=  1 && x <= IMAGE_WIDTH);
+		}
+
+
+};
+
 void print1dvector(row_t vector)
 {   
 	for(const auto& elem: vector)
@@ -324,29 +335,6 @@ float* getMatrix(matrix_t Tr33, float* h_B, int numBRows, int numBColumns)
 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 BevParams::BevParams(float bev_res, tuple_int bev_xLimits, tuple_int bev_zLimits, tuple_int imSize)
 {
 	
@@ -601,8 +589,6 @@ void BirdsEyeView::initialize(Mat& image)
 		index++;
 	}
 
-	//print1dvector(z_vec_length);
-	//print1dvector(x_vec_length);
 	
 	if(debug)
 	{
@@ -625,14 +611,6 @@ void BirdsEyeView::initialize(Mat& image)
 
 
 
-
-
-
-
-
-
-
-
 BirdsEyeView::BirdsEyeView(float bev_res, double invalid_value, tuple_int bev_xRange_minMax, tuple_int bev_zRange_minMax)
 {			
 		
@@ -645,7 +623,7 @@ BirdsEyeView::BirdsEyeView(float bev_res, double invalid_value, tuple_int bev_xR
 		
 }
 
-void BirdsEyeView::computeLookUpTable()
+void BirdsEyeView::computeLookUpTable(Mat& image)
 {
 
 	double e1 = getTickCount();
@@ -665,23 +643,35 @@ void BirdsEyeView::computeLookUpTable()
 		}
 	}
 	
-	//int numCol = this->numBColumns;
+	int numCol = this->numBColumns;
 
+	row_t xi_1(numCol), yi_1(numCol);
 
-	//float* xi_1 = (float*)malloc(numCol*sizeof(float));
-	//float* yi_1 = (float*)malloc(numCol*sizeof(float));
-
-	//float* result_row_0 = result;
-	//float* result_row_1 = result + 1*numCol;
+	float* result_row_0 = result;
+	float* result_row_1 = result + 1*numCol;
 	
-	//vector<int> x_index_vec_copy = this->x_index_vec;
-	//vector<int> z_index_vec_copy = this->z_index_vec;
+	vector<int> x_index_vec_copy = this->x_index_vec;
+	vector<int> z_index_vec_copy = this->z_index_vec;
 	
-	//vector<int> z_vec_sel, x_vec_sel;
+	vector<int> z_vec_sel(numCol), x_vec_sel(numCol);
 
-	
+	/*
 	double e3 = getTickCount();
-/*
+	
+	device_vector<float> result_row_0(result, result + numCol);
+	device_vector<float> xi_1(numCol);
+
+	auto it = thrust::copy_if(result_row_0.begin(),result_row_0.end(),xi_1.begin(), checkSanity());
+			
+	host_vector<float> h_xi_1 (xi_1.begin(),it);
+	/
+
+	//double e4 = getTickCount();
+	//double time = (e4-e3)/getTickFrequency();
+//	cout<<"Time for comapction"<<time<<endl;
+
+
+
 	device_vector<float> result_row_0(result, result + numCol);
 	device_vector<float> result_row_1(result + numCol,result + numCol);
 
@@ -697,52 +687,75 @@ void BirdsEyeView::computeLookUpTable()
 	thrust::copy_if(result_begin, result_end, uv_begin, checkSanity());
 
 */
+	int count  = 0;
 
-	/*
-	for(int i =0;i<numCol;i++)
-		cout<<"items"<<result_row_0[i]<<"\t";
-	cout<<endl;
-	*/
-
-	//device_vector<float> xi_1, yi_1;
-
-	double e4 = getTickCount();
-	double time_for_alloc = (e4-e3)/getTickFrequency();
-
-	cout<<"Time for Alloc \t"<<time_for_alloc<<endl;
-	
-
-
-	/*
 	for(int i =0;i<numCol;i++)
 	{
 		if((*(result_row_1 + i) >=1) & (*(result_row_0 +i) >=1) &
 						(*(result_row_1 + i) <= this->imSize.b) &
-						(*(result_row_0 + i) <= this->imSize.a) )
+						(*(result_row_0 + i) <= this->imSize.a))
 		{
-			//cout<<"Value_c \t"<<*(result_row_0 + i)<<"\t"<<"Values_y\t"<<*(result_row_1 +i)<<endl;
-		//	*(xi_1 + i) = *(result_row_0 + i);
-		//	*(yi_1 + i) = *(result_row_1 + i);
-			z_vec_sel.push_back(z_index_vec_copy[i]);
-			x_vec_sel.push_back(x_index_vec_copy[i]);
-			
+			xi_1[count] = *(result_row_0 + i);
+			yi_1[count] = *(result_row_1 + i);
+			z_vec_sel[count] = z_index_vec_copy[i];
+			x_vec_sel[count] = x_index_vec_copy[i];
+			count++;	
 		}
 
 	}
-	*/
+
+
+	z_vec_sel.resize(count);
+	x_vec_sel.resize(count);
+	xi_1.resize(count);
+	yi_1.resize(count);
+	
+
+	if(debug)
+	{
+		for(const auto& i: xi_1)
+			cout<<i<<"\t";
+		cout<<endl;
+	}
+	
+	if(debug)
+	{
+		for(const auto& i : z_vec_sel)
+			cout<<i<<"\t";
+    	cout<<endl;
+	}
+	
+	
+	
+	vector<int>::const_iterator m,k;
+	row_t::const_iterator i,j;
+
+	Mat output_image((this->bevParams)->bev_size.a,(this->bevParams)->bev_size.b,CV_8UC1);
+
+	unsigned char* i_im = image.data;
+	unsigned char* o_im = output_image.data;
+
+
+	for(i = xi_1.begin() , j = yi_1.begin(), m = x_vec_sel.begin(), k = z_vec_sel.begin();i != xi_1.end();i++,j++,m++,k++)
+	{
+		int row = (int)*j -1;
+		int column = (int)*i -1;
+
+		int row_output_image = (int)*k -1;
+		int column_output_image = (int)*m -1;
+	
+		//cout<<"Row \t"<<row<<"Column \t"<<column<<endl;
+
+		*(o_im + row_output_image*200 + column_output_image) = *(i_im + row*1242+ column);
+
+	}
+
+	imshow("result", output_image);
+	waitKey(0);
 
 	double e2 = getTickCount();
 	double time_lookup = (e2 -e1)/getTickFrequency();
 	cout<<"Time for lookup \t"<<time_lookup<<endl;
-	if(debug)
-	{
-		//for(const auto& i : z_vec_sel)
-		//	cout<<i<<"\t";
-    	//cout<<endl;
-	}
-	
-
-
 }
 
 
@@ -804,7 +817,7 @@ int main(int argc, char* argv[])
 	bev.setup(P2, R0_rect, Tr_cam_to_road);
 	
 	bev.initialize(test_image);
-	bev.computeLookUpTable();
+	bev.computeLookUpTable(test_image);
 
 
 }
