@@ -11,7 +11,6 @@
 #include <iomanip>
 
 
-
 /*Thrust Definitions*/
 
 #include <thrust/host_vector.h>
@@ -20,13 +19,12 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/copy.h>
-
 #include "opencv2/opencv.hpp"
 #include "opencv2/highgui.hpp"
 
 using namespace std;
 using namespace cv;
-using namespace thrust;
+
 
 #define TILE_WIDTH 2
 #define IMAGE_WIDTH 1242
@@ -35,18 +33,17 @@ using namespace thrust;
 typedef vector<float> row_t;
 typedef vector<row_t> matrix_t;
 
-typedef host_vector<float> h_row_t;
-typedef host_vector<float> h_matrix_t;
+typedef thrust::host_vector<float> h_row_t;
+typedef thrust::host_vector<float> h_matrix_t;
 
-typedef device_vector<float> d_row_t;
-typedef device_vector<float> d_matrix_t;
+typedef thrust::device_vector<float> d_row_t;
+typedef thrust::device_vector<float> d_matrix_t;
 
 typedef thrust::tuple<float, float> tuple_t;
 typedef thrust::device_vector<float>::iterator floatIterator;
 typedef thrust::tuple<floatIterator, floatIterator> floatIteratorTuple;
 typedef thrust::zip_iterator<floatIteratorTuple> zipIterator;
 typedef thrust::device_vector<tuple_t>::iterator tupleIterator;
-
 
 
 typedef struct coord{
@@ -132,7 +129,7 @@ class BirdsEyeView
 		void setup(matrix_t P2, matrix_t R0_Rect, matrix_t Tr_cam_to_road);
 		void set_matrix33(matrix_t Tr33);
 		void initialize(Mat& image);
-
+		void computeLookUpTable(Mat& image);
 
 };
 
