@@ -2,6 +2,8 @@
 #include"cuda_error_check.hpp"
 
 bool debug = false;
+cudaEvent_t start, stop;
+
 
 void  matrix_multiplication(float* arr1, int arr1_rows, int arr1_cols, float* arr2, int arr2_rows, int arr2_cols, float* r_arr)
 {	
@@ -153,10 +155,288 @@ __global__  void rgb2gray(unsigned char* d_grayImage, const unsigned char* const
 	unsigned char red = float(*(d_rgbImage + 3*IMAGE_WIDTH*rgb_y + 3*rgb_x +2))*0.299f;
 	
 	*(d_grayImage + rgb_y*IMAGE_WIDTH + rgb_x) = uchar(blue +  green + red);
+	/*Scaling Image to 32f*/
 	*(d_grayImage_32f + rgb_y*IMAGE_WIDTH + rgb_x) = float(uchar(blue + green +red))*(1.0f/255.0f);
 
 }
 
+
+
+__global__ void thresh_to_zero(float* d_image, const float threshold)
+{
+
+	int img_x = blockIdx.x*blockDim.x +  threadIdx.x;
+	int img_y = blockIdx.y*blockDim.y + threadIdx.y;
+
+	if((img_x >= IMAGE_WIDTH) || (img_y >= IMAGE_HEIGHT))
+	{
+			return;
+	}
+
+	if(!(*(d_image +img_y*IMAGE_WIDTH + img_x) >= threshold))
+	{
+
+			*(d_image +img_y*IMAGE_WIDTH + img_x) = 0;
+	}
+
+
+
+}
+
+__global__ void thresh_binary(float* d_image,unsigned char* binary_image, const float threshold, const float max_val)
+{
+	int img_x = blockIdx.x*blockDim.x +  threadIdx.x;
+	int img_y = blockIdx.y*blockDim.y + threadIdx.y;
+
+	if((img_x >= ROI_IMAGE_WIDTH) || (img_y >= ROI_IMAGE_HEIGHT))
+	{
+			return;
+	}
+
+	if(*(d_image + img_y*ROI_IMAGE_WIDTH + img_x) >= threshold)
+	{
+		*(d_image + img_y*ROI_IMAGE_WIDTH + img_x) = max_val;
+		
+	}
+	else
+	{
+		*(d_image +  img_y*ROI_IMAGE_WIDTH + img_x) = float(0);
+
+	}
+
+	__syncthreads();
+	/*Downscale to uchar*/	
+	*(binary_image + img_y*ROI_IMAGE_WIDTH + img_x) = (unsigned char)(*(d_image + img_y*ROI_IMAGE_WIDTH + img_x)*255.0); 
+
+}
+
+__global__ void selectROI(float* input_image, float* roi_selected_image)
+{
+
+	int img_x = blockIdx.x*blockDim.x +  threadIdx.x;
+	int img_y = blockIdx.y*blockDim.y + threadIdx.y;
+
+	/*Assuming ROI Image is 192x224*/
+	
+	if((img_x < ROI_IMAGE_WIDTH) && ((IMAGE_HEIGHT - ROI_IMAGE_HEIGHT) <= img_y < IMAGE_HEIGHT))
+	{	
+		*(roi_selected_image+(img_y -(IMAGE_HEIGHT-ROI_IMAGE_HEIGHT))*ROI_IMAGE_WIDTH + img_x) = *(input_image + img_y*IMAGE_WIDTH + img_x);
+	}
+	
+}
+
+__global__ void clearImage(float* input_image)
+{
+
+	int img_x = blockIdx.x*blockDim.x + threadIdx.x;
+	int img_y = blockIdx.y*blockDim.y + threadIdx.y;
+
+	if((img_x >= IMAGE_WIDTH) || (img_y >= IMAGE_HEIGHT))
+	{
+		return;
+	}
+
+
+	if(img_y < (IMAGE_HEIGHT - ROW_INDEX))
+	{
+	
+		*(input_image + img_y*IMAGE_WIDTH + img_x) = float(0);	
+
+	}
+	else
+	{
+		
+		if((img_x < (IMAGE_WIDTH - COLUMN_INDEX)) || (img_x > COLUMN_INDEX  && img_x < IMAGE_WIDTH))
+		{
+			*(input_image + img_y*IMAGE_WIDTH + img_x) = float(0);	
+
+		}
+
+	}
+}
+
+
+void threshold_image(float* d_image, float* h_thresholded_image, float threshold, float min, float max)
+{
+	
+
+	const dim3 blockSize(THREAD_X, THREAD_Y);
+	const dim3 gridSize((IMAGE_WIDTH + blockSize.x -1)/blockSize.x, (IMAGE_HEIGHT + blockSize.y -1)/blockSize.y);
+	
+	thresh_to_zero<<<gridSize, blockSize>>>(d_image, threshold);
+	cudaDeviceSynchronize();
+	//CudaCheckError();
+	
+	
+	clearImage<<<gridSize, blockSize>>>(d_image);
+	cudaDeviceSynchronize();
+	//CudaCheckError();
+	
+	if(debug)
+	{
+		cudaMemcpy(h_thresholded_image, d_image, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
+		//CudaCheckError();
+		Mat output_image(IMAGE_HEIGHT, IMAGE_WIDTH, CV_32F);
+		for(int i =0;i<IMAGE_HEIGHT;i++)
+		{
+			for(int j = 0;j<IMAGE_WIDTH;j++)
+			{
+				output_image.at<float>(i,j) = *(h_thresholded_image + i*IMAGE_WIDTH + j);
+			
+			}
+		}
+	
+		imshow("Result", output_image);
+		waitKey(0);
+	}
+	
+	float* h_roi_selectedImage = (float*)malloc(ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(float));
+	float* d_roi_selectedImage;
+
+	cudaMalloc((void**)&d_roi_selectedImage,ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(float));
+	//CudaCheckError();
+	
+	cudaMemset(d_roi_selectedImage,0, ROI_IMAGE_HEIGHT*ROI_IMAGE_WIDTH*sizeof(float));
+	//CudaCheckError();
+
+	selectROI<<<gridSize,blockSize>>>(d_image, d_roi_selectedImage);
+	cudaDeviceSynchronize();
+	//CudaCheckError();
+
+	if(debug)
+	{	
+		cudaMemcpy(h_roi_selectedImage,d_roi_selectedImage,sizeof(float)*ROI_IMAGE_HEIGHT*ROI_IMAGE_WIDTH, cudaMemcpyDeviceToHost);
+		//CudaCheckError();
+		Mat roi_image(ROI_IMAGE_HEIGHT, ROI_IMAGE_WIDTH, CV_32F);
+		for(int i =0;i<ROI_IMAGE_HEIGHT;i++)
+		{
+			for(int j = 0;j<ROI_IMAGE_WIDTH;j++)
+				{
+					roi_image.at<float>(i,j) = *(h_roi_selectedImage + i*ROI_IMAGE_WIDTH + j);
+				
+				}
+		}
+	
+		//cout<<roi_image<<endl;
+		cout<<roi_image.rows<<"\t"<<roi_image.cols;
+		imshow("Result", roi_image);
+		waitKey(0);
+
+	}
+
+	float bin_thresh = (max)/2;
+	unsigned char* d_bin_image;
+	cudaMalloc((void**)&d_bin_image, ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char));
+	//CudaCheckError();
+	
+	cudaMemset(d_bin_image, 0, ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char));
+	//CudaCheckError();
+
+	dim3 gridSize_roi((ROI_IMAGE_WIDTH + blockSize.x -1)/blockSize.x, (ROI_IMAGE_HEIGHT + blockSize.y -1)/blockSize.y);
+
+	thresh_binary<<<gridSize_roi, blockSize>>>(d_roi_selectedImage, d_bin_image,bin_thresh, 1);
+	cudaDeviceSynchronize();
+	//CudaCheckError();
+
+	if(debug)
+	{
+		cudaMemcpy(h_roi_selectedImage,d_roi_selectedImage,sizeof(float)*ROI_IMAGE_HEIGHT*ROI_IMAGE_WIDTH, cudaMemcpyDeviceToHost);
+		//CudaCheckError();
+		Mat roi_image(ROI_IMAGE_HEIGHT, ROI_IMAGE_WIDTH, CV_32F);
+		for(int i =0;i<ROI_IMAGE_HEIGHT;i++)
+		{
+			for(int j = 0;j<ROI_IMAGE_WIDTH;j++)
+			{
+				roi_image.at<float>(i,j) = *(h_roi_selectedImage + i*ROI_IMAGE_WIDTH + j);
+				
+			}
+		}
+	
+	
+		//cout<<roi_image<<endl;
+		imshow("Result", roi_image);
+		waitKey(0);
+	}
+	unsigned char* h_bin_image = (unsigned char*)malloc(ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char));
+	cudaMemcpy(h_bin_image, d_bin_image,ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	//CudaCheckError();
+	
+	cudaEventRecord(stop);
+	cudaEventSynchronize(stop);
+	float milliseconds = 0;
+	cudaEventElapsedTime(&milliseconds, start, stop);
+	cout<<"Time \t"<<milliseconds<<endl;
+
+
+	if(debug)
+	{
+		cout<<(int)*(h_bin_image)<<endl;
+		Mat bin_image(ROI_IMAGE_HEIGHT, ROI_IMAGE_WIDTH, CV_8UC1);
+		for(int i = 0;i<ROI_IMAGE_HEIGHT;i++)
+		{
+			for(int j = 0;j<ROI_IMAGE_WIDTH;j++)
+			{
+				bin_image.at<unsigned char>(i,j) = *(h_bin_image + i*ROI_IMAGE_WIDTH + j);
+			}
+		}
+		imshow("Result", bin_image);
+		waitKey(0);
+	}
+
+
+}
+
+
+void getQuantile(float* d_filteredImage,float* h_filtered_Image, float qtile)
+{
+	thrust::device_ptr<float> dbeg(d_filteredImage);
+	thrust::device_ptr<float> dend = dbeg + NUMPIX;
+
+	float min, max;
+	find_min_max(dbeg, dend, &min, &max);
+	
+	float quantile_value = 0;
+
+	if(NUMPIX == 0)
+	{
+		quantile_value = float(0);
+
+	}
+	else if(NUMPIX == 1)
+	{
+		quantile_value = *(d_filteredImage +0);
+
+	}
+	else if(qtile <=0)
+	{
+		cout<<"Third If Statement"<<endl;
+		quantile_value = min;
+	}
+	else if (qtile >=1)
+	{
+		quantile_value =  max;
+	}
+	else
+	{
+		float pos = (NUMPIX - 1)*qtile;
+		unsigned int index = pos;
+		float delta = pos - index;	
+		vector<float> w(h_filtered_Image, h_filtered_Image + NUMPIX);
+		nth_element(w.begin(), w.begin() +index, w.end());
+		float i1 = *(w.begin() + index);
+		float i2 = *min_element(w.begin() + index +1, w.end());
+		quantile_value = (float)(i1*(1.0 - delta) + i2*delta);
+
+	}
+
+	float* h_thresholded_image = (float*)malloc(sizeof(float)*NUMPIX);
+	
+	threshold_image(d_filteredImage, h_thresholded_image, quantile_value, min,
+			max);
+	
+
+
+}
 
 
 void filterImage(const float* const grayImage, int width_kernel_x, int  width_kernel_y, float sigmax, float sigmay)
@@ -216,7 +496,6 @@ void filterImage(const float* const grayImage, int width_kernel_x, int  width_ke
 	}
 
 	mean /=nrow_kernel_y*ncol_kernel_x;
-	cout<<"Mean Value \t"<<mean<<endl;
 
 
 	/*Subtract Mean Value from Kernel*/
@@ -225,9 +504,9 @@ void filterImage(const float* const grayImage, int width_kernel_x, int  width_ke
 		for(int j =0;j<ncol_kernel_x;j++)
 		{		
 				*(kernel + i*ncol_kernel_x + j) -= mean;
-				cout<<*(kernel + i*ncol_kernel_x + j)<<"\t";
+				//cout<<*(kernel + i*ncol_kernel_x + j)<<"\t";
 		}	
-		cout<<endl;
+		//cout<<endl;
 	}
 
 
@@ -235,15 +514,15 @@ void filterImage(const float* const grayImage, int width_kernel_x, int  width_ke
 	float* h_filter_Image = (float*)malloc(NUMPIX*sizeof(float));	
 
 	cudaMalloc((void**)&d_kernel,nrow_kernel_y*ncol_kernel_x*sizeof(float));
-	CudaCheckError();
+	//CudaCheckError();
 
 	cudaMemcpy(d_kernel,kernel,nrow_kernel_y*ncol_kernel_x*sizeof(float),cudaMemcpyHostToDevice);
-	CudaCheckError();
+	//CudaCheckError();
 
 	const int filterWidth = CU_FILTER_WIDTH;
 
 	cudaMalloc((void**)&d_filter_Image, NUMPIX*sizeof(float));
-	CudaCheckError();
+	//CudaCheckError();
 
 	const dim3 blockSize(THREAD_X, THREAD_Y);	
 	const dim3 gridSize((IMAGE_WIDTH + blockSize.x -1)/blockSize.x, (IMAGE_HEIGHT + blockSize.y -1)/blockSize.y);
@@ -252,18 +531,19 @@ void filterImage(const float* const grayImage, int width_kernel_x, int  width_ke
 
 	gaussian_blur_tiled<<<gridSize,blockSize,smemSize>>>(grayImage,d_filter_Image, IMAGE_HEIGHT, IMAGE_WIDTH,d_kernel, filterWidth);
 	cudaDeviceSynchronize();
-	CudaCheckError();
-
+	//CudaCheckError();
+	
+	/*
 	thrust::device_ptr<float> dbeg(d_filter_Image);
 	thrust::device_ptr<float> dend = dbeg + NUMPIX;
 	
 	float min, max;
 	find_min_max(dbeg, dend, &min, &max);
-
-
+	*/
 
 	cudaMemcpy(h_filter_Image, d_filter_Image, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
-
+	getQuantile(d_filter_Image, h_filter_Image,0.985);
+	
 	if(debug)
 	{
 		Mat output_image(IMAGE_HEIGHT,IMAGE_WIDTH, CV_32F);
@@ -280,6 +560,7 @@ void filterImage(const float* const grayImage, int width_kernel_x, int  width_ke
 		waitKey(0);
 	}
 
+	
 
 }
 
@@ -292,24 +573,27 @@ void convert2Gray(const unsigned char* const rgbImage, unsigned char* grayImage,
 	unsigned char* d_grayImage;
 	float* d_grayImage_32f;
 	
+
+	cudaEventRecord(start);
+
+
 	cudaMalloc((void**)&d_rgbImage, 3*NUMPIX*sizeof(unsigned char));
 	CudaCheckError();
-
 	
 	cudaMalloc((void**)&d_grayImage, NUMPIX*sizeof(unsigned char));
-	CudaCheckError();
+	//CudaCheckError();
 	
 	cudaMalloc((void**)&d_grayImage_32f, NUMPIX*sizeof(float));
-	CudaCheckError();
+	//CudaCheckError();
 
 	cudaMemset(d_grayImage, 0, sizeof(unsigned char)*NUMPIX);
-	CudaCheckError();
+	//CudaCheckError();
 	
 	cudaMemset(d_grayImage_32f, 0, sizeof(float)*NUMPIX);
-	CudaCheckError();
+	//CudaCheckError();
 
 	cudaMemcpy(d_rgbImage, rgbImage, 3*sizeof(unsigned char)*NUMPIX,cudaMemcpyHostToDevice);
-	CudaCheckError();
+	//CudaCheckError();
 	
 	
 	dim3 blockSize(THREAD_X, THREAD_Y);
@@ -317,13 +601,13 @@ void convert2Gray(const unsigned char* const rgbImage, unsigned char* grayImage,
 	
 	rgb2gray<<<gridSize, blockSize>>>(d_grayImage, d_rgbImage, d_grayImage_32f);
 	cudaDeviceSynchronize();
-	CudaCheckError();
+	//CudaCheckError();
 	
-	cudaMemcpy(grayImage, d_grayImage, sizeof(unsigned char)*NUMPIX,cudaMemcpyDeviceToHost);
-	CudaCheckError();
+	//cudaMemcpy(grayImage, d_grayImage, sizeof(unsigned char)*NUMPIX,cudaMemcpyDeviceToHost);
+	//CudaCheckError();
 	
-	cudaMemcpy(h_grayImage_32f,d_grayImage_32f, sizeof(float)*NUMPIX, cudaMemcpyDeviceToHost);
-	CudaCheckError();
+	//cudaMemcpy(h_grayImage_32f,d_grayImage_32f, sizeof(float)*NUMPIX, cudaMemcpyDeviceToHost);
+	//CudaCheckError();
 
 	filterImage(d_grayImage_32f, 2, 2 ,2,10);
 
@@ -374,10 +658,19 @@ int main(int argc, char* argv[])
 
 	Mat src_host;
 	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_0.png", CV_LOAD_IMAGE_COLOR);
-		
+	
+	//float* test;
+	//cudaMalloc((void**)&test, NUMPIX*sizeof(float));
+	//CudaCheckError();
+
 	unsigned char* h_rgb_img = src_host.data;
 	unsigned char* h_gray_img = (unsigned char*)malloc(NUMPIX*sizeof(unsigned char));
 	float* h_grayImage_32f = (float*)malloc(NUMPIX*sizeof(float));
+
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+
+	
 	convert2Gray(h_rgb_img, h_gray_img, h_grayImage_32f);
 	
 
