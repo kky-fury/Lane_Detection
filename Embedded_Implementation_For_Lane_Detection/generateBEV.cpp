@@ -575,6 +575,7 @@ matrix_t BirdsEyeView::world2image_uvMat(matrix_t& uvMat)
 void BirdsEyeView::transformImage2BEV(const Mat& image)
 {
 	double e3,e4;
+	
 	e3 = getTickCount();
 	row_t::const_iterator i,j;
 	//cout<<get<0>((this->bevParams)->bev_size)<<endl;
