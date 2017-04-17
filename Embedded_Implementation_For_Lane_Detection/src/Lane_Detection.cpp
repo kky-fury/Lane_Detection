@@ -61,14 +61,18 @@ void filterImage(const gpu::GpuMat& src, gpu::GpuMat& dst, float width_kernel_x,
 	{
 		cout<< "Kernel = " << endl<< " "<<kernel<<endl<<endl; 
 	}
+
 	
 	Scalar mean_kernel;
 	mean_kernel = mean(kernel)(0);
+	cout<<"Mean Value"<<mean_kernel<<endl;
 	subtract(kernel,mean_kernel,kernel);
-
+	
 	/*Filter Image on gpu*/
 	gpu::filter2D(dst,dst,-1,kernel);
 	
+
+
 }
 
 /*Get quantile value for Thresholding*/
@@ -84,7 +88,7 @@ void getQuantile(const gpu::GpuMat& src,gpu::GpuMat& dst, float  qtile)
 	Mat array = temp_image.reshape(1,number_rows*number_columns);
 	float quantile = getPoints(array, qtile); 
 
-	if(debug)
+	if(1)
 	{
 		cout<<quantile<<endl;
 	}
@@ -139,7 +143,9 @@ float getPoints(Mat& input_image, float quantile)
 	float i1 = *(w.begin() + index);
 	float i2 = *min_element(w.begin() + index +1,w.end());
 	return (float)(i1*(1.0 - delta) + i2*delta);
-	
+
+
+
 }
 
 void thresholdlower(const gpu::GpuMat& src, gpu::GpuMat& dst,double threshold)
@@ -205,6 +211,8 @@ void getclearImage(gpu::GpuMat& src, gpu::GpuMat& dst)
 	int column_index = (int)(number_columns*0.75);
 	int row_index = (int)(number_rows*0.75);
 
+	cout<<"Column Index"<<column_index<<endl;
+	cout<<"Row Index"<<row_index<<endl;
 	gpu::GpuMat temp_roi;
 
 	temp_roi = gpu::GpuMat(src, Rect(0,0,(number_columns-column_index),number_rows-1));
@@ -250,10 +258,12 @@ void selectROI(const gpu::GpuMat& src, gpu::GpuMat& dst)
 	cout<<roi_height<<endl;
 	dst = gpu::GpuMat(src, Rect(0,176, 192, number_rows-176));
 	
-	if(debug)
+	if(1)
 	{
 		Mat dst_host;
 		dst.download(dst_host);
+		cout<<"\t"<<dst_host.rows<<endl;
+		cout<<"\t"<<dst_host.cols<<endl;
 		imwrite("/home/nvidia/Binary_test_image_for_cuda_ht.png", dst_host);
 		imshow("Result", dst_host);
 		waitKey(0);
@@ -379,7 +389,7 @@ void getHoughLines(const gpu::GpuMat& src, const gpu::GpuMat& gray_image)
 	//cout<<(int)*(data)<<endl;
 	imshow("Test",binary_image);
 	waitKey(0);
-	imwrite("/home/nvidia/Binary_test_image_for_cuda_ht.png",binary_image);
+	imwrite("/home/nvidia/Binary_test_image_for_cuda_ht_1.png",binary_image);
 
 }
 
@@ -407,7 +417,7 @@ int main(int argc, char* argv[])
 
 	Mat src_host;
 
-	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_1.png");	
+	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_0.png");	
 	gpu::GpuMat input_image, gray_image;
 		
 	/*Upload Image on Gpu*/
@@ -419,7 +429,7 @@ int main(int argc, char* argv[])
 	convertrgb2Gray(input_image, gray_image);
 	Mat gray_image_host ;
 	gray_image.download(gray_image_host);
-	imwrite("/home/nvidia/gray_image.png",gray_image_host);
+	imwrite("/home/nvidia/gray_image_1.png",gray_image_host);
 
 	if(debug)
 	{
@@ -438,6 +448,7 @@ int main(int argc, char* argv[])
 	{
 		Mat dst_host;
 		filtered_image.download(dst_host);
+		//cout<<dst_host<<endl;
 		imshow("Result",dst_host);
 		waitKey(0);
 	}

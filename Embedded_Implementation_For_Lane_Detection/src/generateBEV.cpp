@@ -207,6 +207,7 @@ Calibration::Calibration()
 
 void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_road)
 {
+	double e1 =  getTickCount();
 	this->P2 = P2;
 	//matrix_t R0_rect_raw(4, row_t(4,0));
 	(this->R0_Rect).resize(4,row_t(4,0));
@@ -276,6 +277,10 @@ void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_
 
 	this->Tr33 = this->Tr;
 	
+	double e2 = getTickCount();
+	double time = (e2-e1)/getTickFrequency();
+
+	cout<<"Time for Calibration"<<time<<endl;
 
 
 }
@@ -328,6 +333,12 @@ void BirdsEyeView::compute(const Mat& image)
 
 void BirdsEyeView::computeBEVLookUpTable()
 {
+
+	
+
+	double e5,e6;
+	e5 = getTickCount();
+
 	float res = (this->bevParams)->bev_res;
 	
 	int x_vec_length = ((get<1>((this->bevParams)->bev_xLimits)) - (get<0>((this->bevParams)->bev_xLimits) + res/2))/res + 1;
@@ -340,13 +351,17 @@ void BirdsEyeView::computeBEVLookUpTable()
 	cout<<"Initial_Value"<<init_value_z<<endl;
 
 	row_t x_vec(x_vec_length), z_vec(z_vec_length);	
+		
+		
+
+
 	for(int i = 0 ;i<x_vec_length;i++)
 	{
 		x_vec[i] = init_value_x;
 		init_value_x += res;
 		
 	}
-		
+	
 	
 	for(int i = 0 ;i<z_vec_length;i++)
 	{
@@ -450,13 +465,8 @@ void BirdsEyeView::computeBEVLookUpTable()
 	{
 		if(!((this->xi_1)[i] == (this->invalid_value)))
 		{
-			//cout<<"index_value \t"<<i<<endl;
-			//z_index_vec.erase(z_index_vec.begin() + i);		
-			//cout<<"z_index_value at that index \t"<<z_index_vec[i]<<endl;
 			z_index_vec_sel.push_back(z_index_vec[i]);
-			//this->bev_z_index.push_back(z_index_vec[i]);
 			x_index_vec_sel.push_back(x_index_vec[i]);
-			//this->bev_x_index.push_back(x_index_vec[i]);
 			size_counter++;
 		}
 
@@ -467,6 +477,9 @@ void BirdsEyeView::computeBEVLookUpTable()
 	this->bev_x_index = x_index_vec_sel;
 	this->bev_z_index = z_index_vec_sel;
 
+	e6 = getTickCount();
+	double time_for_lookup = (e6 - e5)/getTickFrequency();
+	cout<<"Time for LookUp \t"<<time_for_lookup<<endl;
 
 }
 
@@ -507,6 +520,8 @@ void BirdsEyeView::world2image(row_t x_world, row_t z_world)
 	row_t::iterator i,j;
 
 	double e1 = getTickCount();
+	
+	cout<< get<0>(this->imSize)<<endl;
 
 	for(i = (this->xi_1).begin(), j = (this->yi_1).begin(); i<(this->xi_1).end(); i++, j++)
 	{
@@ -538,7 +553,13 @@ void BirdsEyeView::world2image(row_t x_world, row_t z_world)
 matrix_t BirdsEyeView::world2image_uvMat(matrix_t& uvMat)
 {
 	double e1 = getTickCount();
+	
+	/*Try To Do matrix multiplication using Cuda Thrust*/
+
 	matrix_t result = matrix_multiplication(this->Tr33, uvMat);
+
+	//print2dvector(result);
+
 	double e2 = getTickCount();
 	double time = (e2 -e1)/getTickFrequency();
 	cout<<"Time for Multiplication"<<time<<endl;
@@ -645,7 +666,7 @@ int main(int argc, char* argv[])
 {
 
 
-	Mat test_image = imread("/home/mohak/Downloads/Lane_Detection-master/Original_Images/img_0.png", CV_LOAD_IMAGE_GRAYSCALE);
+	Mat test_image = imread("/home/nvidia/Lane_Detection/Original_Images/img_0.png", CV_LOAD_IMAGE_GRAYSCALE);
 
 	if(debug)
 	{	

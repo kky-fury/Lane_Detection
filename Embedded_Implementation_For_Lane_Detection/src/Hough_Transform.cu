@@ -3,7 +3,8 @@
 *
 */
 #include"hough.hpp"
-bool debug = false;
+#include"cuda_error_check.hpp"
+bool debug_hough = false;
 #define THREADS_X 	32
 #define THREADS_Y	4
 #define PIXELS_PER_THREAD 16
@@ -308,7 +309,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		int numrho,float thetaStep, float
 		rStep)
 {
-	/*	if(debug)
+	/*	if(debug_hough)
 		{
 			cudaEvent_t start, stop;
 			cudaEventCreate(&start);
@@ -325,88 +326,46 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 
 		void* counterPtr;
 		cudaGetSymbolAddress(&counterPtr, g_counter);
-		cudaError_t c_err;
 
 
-		c_err = cudaMemset(counterPtr,0,sizeof(int));
-	
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-
+		cudaMemset(counterPtr,0,sizeof(int));
+		CudaCheckError();
 
 		cudaFuncSetCacheConfig(getNonzeroEdgepoints, cudaFuncCachePreferShared);
 			
-		c_err = cudaMalloc((void**)&gimage, IMG_SIZE*sizeof(unsigned char));
-		
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-		
-		c_err = cudaMalloc((void**) &glist, IMG_SIZE*sizeof(unsigned int));
-
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-		
+		cudaMalloc((void**)&gimage, IMG_SIZE*sizeof(unsigned char));
+		CudaCheckError();
+	
+		cudaMalloc((void**) &glist, IMG_SIZE*sizeof(unsigned int));
+		CudaCheckError();
+	
 		/*Copy Image to GPU */	
 	
-		c_err = cudaMemcpy(gimage, edges, IMG_SIZE*sizeof(unsigned char),
-			cudaMemcpyHostToDevice);
-
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-
+		cudaMemcpy(gimage, edges, IMG_SIZE*sizeof(unsigned char),cudaMemcpyHostToDevice);
+		CudaCheckError();
 		
 		dim3 dimBlock1(THREADS_X, THREADS_Y);
 		dim3 dimGrid1(1, 56);
 		getNonzeroEdgepoints<<<dimGrid1,dimBlock1>>>(gimage, glist);
-
-		c_err = cudaGetLastError();
-		if(c_err != cudaSuccess)
-		{
-			printf("Error: %s\n", cudaGetErrorString(c_err));
-		
-		}
-		
+		CudaCheckError();
 		cudaDeviceSynchronize();
 
 		int totalCount ;
-		cudaMemcpy(&totalCount, counterPtr, sizeof(int),
-				cudaMemcpyDeviceToHost);
+		cudaMemcpy(&totalCount, counterPtr, sizeof(int),cudaMemcpyDeviceToHost);
 		cout<<"Total Count :"<<totalCount<<endl;
 
-		if(debug)
+		if(debug_hough)
 		{
 			unsigned int* clist = (unsigned int*)malloc(totalCount*sizeof(unsigned int));
-			c_err = cudaMemcpy(clist, glist, totalCount*sizeof(unsigned int),cudaMemcpyDeviceToHost);
-			if(c_err != cudaSuccess)
-			{
-					printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-					exit(EXIT_FAILURE);
-			}
+			cudaMemcpy(clist, glist, totalCount*sizeof(unsigned int),cudaMemcpyDeviceToHost);
+			CudaCheckError();
+
 			for(int i = 0; i< totalCount; i++)
 			{	
 				unsigned int const q_value = clist[i];
 				cout<<"q_value : "<<q_value<<endl;
 				const int x = (q_value & 0xFFFF);
 				const int y = (q_value >> 16 ) & 0xFFFF;
-				//unsigned int const x = (q_value & 0x0000FFFF);
-				//unsigned int const y = (q_value >> 16) & 0x0000FFFF;
 				cout<<"coordinate ("<<x<<","<<y<<")"<<endl;
 				cout<<"Value at coordinate :"<<(int)*(edges + y*IMG_WIDTH + x)<<endl;
 			}
@@ -434,53 +393,24 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		/*Allocate houghSpace on Gpu*/
 		int *d_hough_space;
 
-		c_err = cudaMalloc((void**)&d_hough_space,hough_size*sizeof(int));
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
+		cudaMalloc((void**)&d_hough_space,hough_size*sizeof(int));
+		CudaCheckError();
+	
+		cudaMemset(d_hough_space, 0, hough_size*sizeof(int));
+		CudaCheckError();
 		
-
-		c_err = cudaMemset(d_hough_space, 0, hough_size*sizeof(int));
-		
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-
-		
-		fillHoughSpace<<<grid,block, smemSize>>>(glist, totalCount,d_hough_space, 1.0f/
-				rStep, thetaStep, colhspace -2);
-		
-		c_err = cudaGetLastError();	
-		if(c_err != cudaSuccess)
-		{
-			printf("Error: %s\n", cudaGetErrorString(c_err));
-		
-		}	
+		fillHoughSpace<<<grid,block, smemSize>>>(glist, totalCount,d_hough_space, 1.0f/rStep, thetaStep, colhspace -2);
+		CudaCheckError();
 
 		cudaDeviceSynchronize();
 
 	
-		if(debug)
+		if(debug_hough)
 		{
 			int* hough_space = (int*)malloc(hough_size*sizeof(int));
-			c_err = cudaMemcpy(hough_space, d_hough_space, hough_size*sizeof(int),
-					cudaMemcpyDeviceToHost);
-		
-			if(c_err != cudaSuccess)
-			{
-				printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-					__FILE__,__LINE__);
-				exit(EXIT_FAILURE);
-			}
-
-			//cout<<*(hough_space + 0)<<endl;	
-		
+			cudaMemcpy(hough_space, d_hough_space, hough_size*sizeof(int),cudaMemcpyDeviceToHost);
+			CudaCheckError();
+	
 			for(int i =0;i<rhspace;i++)
 			{	
 				for(int j =0;j<colhspace;j++)
@@ -499,37 +429,15 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 			
 		float2* d_lines;
 		int* d_votes;
-	
 
-		c_err = cudaMalloc((void**)&d_lines,maxLines*sizeof(float2));
-		
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-	
-		c_err = cudaMalloc((void**)&d_votes, maxLines*sizeof(int));
-		
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
+		cudaMalloc((void**)&d_lines,maxLines*sizeof(float2));
+		CudaCheckError();	
 
 		void *counterPtr_lines;			
 		cudaGetSymbolAddress(&counterPtr_lines, g_counter_lines);
 		
-		c_err = cudaMemset(counterPtr_lines, 0, sizeof(int));
-		
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
+		cudaMemset(counterPtr_lines, 0, sizeof(int));
+		CudaCheckError();
 
 		const dim3 block_1(32,8);
 		const int blocks_x = ((colhspace - 2 + block_1.x - 1)/(block_1.x));
@@ -538,33 +446,15 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 			
 		
 		cudaFuncSetCacheConfig(getLines, cudaFuncCachePreferL1);
-
-		getLines<<<grid_1, block_1>>>(d_hough_space, d_lines, d_votes, maxLines,
-				rStep, thetaStep, threshold, colhspace -2, rhspace);
-
-	
-		c_err = cudaGetLastError();
-		if(c_err != cudaSuccess)
-		{
-			printf("Error: %s\n", cudaGetErrorString(c_err));
-		
-		}	
-
-		
+		getLines<<<grid_1, block_1>>>(d_hough_space, d_lines, d_votes, maxLines,rStep, thetaStep, threshold, colhspace -2, rhspace);
+		CudaCheckError();	
 		cudaDeviceSynchronize();
 
 		int countlines;
 
-		c_err = cudaMemcpy(&countlines, counterPtr_lines, sizeof(int),
-				cudaMemcpyDeviceToHost);
-
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-		
+		cudaMemcpy(&countlines, counterPtr_lines, sizeof(int),cudaMemcpyDeviceToHost);
+		CudaCheckError();
+	
 		cout<<"totalCount of lines"<<countlines<<endl;	
 		
 		countlines = min(countlines, maxLines);
@@ -572,27 +462,13 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		float2* lines = (float2*)malloc(countlines*sizeof(float2)); 
 		int* votes = (int*)malloc(countlines*sizeof(int));
 
-		c_err = cudaMemcpy(lines, d_lines, countlines*sizeof(float2),
-				cudaMemcpyDeviceToHost);
-
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-	
+		cudaMemcpy(lines, d_lines, countlines*sizeof(float2),cudaMemcpyDeviceToHost);
+		CudaCheckError();	
 		
-		c_err = cudaMemcpy(votes, d_votes, countlines*sizeof(int),
-				cudaMemcpyDeviceToHost);
-		if(c_err != cudaSuccess)
-		{
-			printf("%s in %s at line %d \n", cudaGetErrorString(c_err),
-				__FILE__,__LINE__);
-			exit(EXIT_FAILURE);
-		}
-	
-		if(debug)
+		cudaMemcpy(votes, d_votes, countlines*sizeof(int),cudaMemcpyDeviceToHost);
+		CudaCheckError();
+
+		if(debug_hough)
 		{
 			Mat gray_image = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_4.png",0);
 		
@@ -625,7 +501,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		}
 
 	/*	
-		if(debug)
+		if(debug_hough)
 		{	
 			cudaEventRecord(stop,0);
 			cudaEventSynchronize(stop);
@@ -660,7 +536,7 @@ int main(int argc, char* argv[])
 	Mat src_host = imread("/home/nvidia/Binary_test_image_for_cuda_ht_1.png",
 			CV_8UC1);
 
-	if(debug)
+	if(debug_hough)
 	{
 		cout<<"cols"<<src_host.cols<<endl;
 		cout<<"rows"<<src_host.rows<<endl;
@@ -672,7 +548,7 @@ int main(int argc, char* argv[])
 	//cout<<src_host<<endl;
 		
 	count = countNonZero(src_host);
-	if(debug)
+	if(debug_hough)
 	{
 		cout<<count<<endl;
 	
@@ -682,7 +558,7 @@ int main(int argc, char* argv[])
 	int width = size.width;
 	int height = size.height;
 
-	if(debug)
+	if(debug_hough)
 	{
 		imshow("Result",src_host);
 		waitKey(0);
@@ -696,7 +572,7 @@ int main(int argc, char* argv[])
 
 	/*Convert array to uchar* (0-255)*/	
 	unsigned char *edge_image = src_host.data;
-	if(debug)
+	if(debug_hough)
 	{
 		print_image(edge_image, height,width);	
 	
@@ -723,7 +599,7 @@ int main(int argc, char* argv[])
 	const int numangle = std::round((thetaMax - thetaMin)/thetaStep);
 	const int numrho = std::round(rMax/rStep);
 
-	if(debug)
+	if(debug_hough)
 	{
 		cout<<numangle<<endl;
 		cout<<numrho<<endl;
@@ -748,7 +624,7 @@ int main(int argc, char* argv[])
 
 	}
 
-	if(debug)
+	if(debug_hough)
 	{
 		print_array(r_values, numrho);
 		print_array(th_vaues, numangle);

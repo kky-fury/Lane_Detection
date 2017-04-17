@@ -1,8 +1,8 @@
 #include "preprocess.hpp"
 #include"cuda_error_check.hpp"
 
-bool debug = false;
 cudaEvent_t start, stop;
+bool debug_pre_process=false;
 
 
 void  matrix_multiplication(float* arr1, int arr1_rows, int arr1_cols, float* arr2, int arr2_rows, int arr2_cols, float* r_arr)
@@ -136,9 +136,8 @@ __global__ void gaussian_blur_tiled(const float* const grayImage, float*
 }
 
 
-/*Converts rgb2gray and Scales down an image to 32f*/
-__global__  void rgb2gray(unsigned char* d_grayImage, const unsigned char* const
-		d_rgbImage, float* d_grayImage_32f)
+/*Scales down an image to 32f*/
+__global__  void uchar2fp(const unsigned char* const d_grayImage, float* d_grayImage_32f)
 {
 
 	int rgb_x = blockIdx.x*blockDim.x + threadIdx.x;
@@ -148,15 +147,9 @@ __global__  void rgb2gray(unsigned char* d_grayImage, const unsigned char* const
 	{
 		return;
 	}
-
-		
-	unsigned char blue = float(*(d_rgbImage + 3*IMAGE_WIDTH*rgb_y + 3*rgb_x))*0.114f;
-	unsigned char green = float(*(d_rgbImage + 3*IMAGE_WIDTH*rgb_y + 3*rgb_x +1))*0.587f;
-	unsigned char red = float(*(d_rgbImage + 3*IMAGE_WIDTH*rgb_y + 3*rgb_x +2))*0.299f;
 	
-	*(d_grayImage + rgb_y*IMAGE_WIDTH + rgb_x) = uchar(blue +  green + red);
 	/*Scaling Image to 32f*/
-	*(d_grayImage_32f + rgb_y*IMAGE_WIDTH + rgb_x) = float(uchar(blue + green +red))*(1.0f/255.0f);
+	*(d_grayImage_32f + rgb_y*IMAGE_WIDTH + rgb_x) = *(d_grayImage +rgb_y*IMAGE_WIDTH + rgb_x)*(1.0f/255.0f);
 
 }
 
@@ -256,7 +249,7 @@ __global__ void clearImage(float* input_image)
 }
 
 
-void threshold_image(float* d_image, float* h_thresholded_image, float threshold, float min, float max)
+unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float threshold, float min, float max)
 {
 	
 
@@ -272,7 +265,7 @@ void threshold_image(float* d_image, float* h_thresholded_image, float threshold
 	cudaDeviceSynchronize();
 	//CudaCheckError();
 	
-	if(debug)
+	if(debug_pre_process)
 	{
 		cudaMemcpy(h_thresholded_image, d_image, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
 		//CudaCheckError();
@@ -303,7 +296,7 @@ void threshold_image(float* d_image, float* h_thresholded_image, float threshold
 	cudaDeviceSynchronize();
 	//CudaCheckError();
 
-	if(debug)
+	if(debug_pre_process)
 	{	
 		cudaMemcpy(h_roi_selectedImage,d_roi_selectedImage,sizeof(float)*ROI_IMAGE_HEIGHT*ROI_IMAGE_WIDTH, cudaMemcpyDeviceToHost);
 		//CudaCheckError();
@@ -338,7 +331,7 @@ void threshold_image(float* d_image, float* h_thresholded_image, float threshold
 	cudaDeviceSynchronize();
 	//CudaCheckError();
 
-	if(debug)
+	if(debug_pre_process)
 	{
 		cudaMemcpy(h_roi_selectedImage,d_roi_selectedImage,sizeof(float)*ROI_IMAGE_HEIGHT*ROI_IMAGE_WIDTH, cudaMemcpyDeviceToHost);
 		//CudaCheckError();
@@ -360,15 +353,16 @@ void threshold_image(float* d_image, float* h_thresholded_image, float threshold
 	unsigned char* h_bin_image = (unsigned char*)malloc(ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char));
 	cudaMemcpy(h_bin_image, d_bin_image,ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char), cudaMemcpyDeviceToHost);
 	//CudaCheckError();
-	
+
+	/*
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
 	float milliseconds = 0;
 	cudaEventElapsedTime(&milliseconds, start, stop);
 	cout<<"Time \t"<<milliseconds<<endl;
+	*/
 
-
-	if(debug)
+	if(debug_pre_process)
 	{
 		cout<<(int)*(h_bin_image)<<endl;
 		Mat bin_image(ROI_IMAGE_HEIGHT, ROI_IMAGE_WIDTH, CV_8UC1);
@@ -383,11 +377,12 @@ void threshold_image(float* d_image, float* h_thresholded_image, float threshold
 		waitKey(0);
 	}
 
+	return h_bin_image;
 
 }
 
 
-void getQuantile(float* d_filteredImage,float* h_filtered_Image, float qtile)
+unsigned char* getQuantile(float* d_filteredImage,float* h_filtered_Image, float qtile)
 {
 	thrust::device_ptr<float> dbeg(d_filteredImage);
 	thrust::device_ptr<float> dend = dbeg + NUMPIX;
@@ -431,15 +426,14 @@ void getQuantile(float* d_filteredImage,float* h_filtered_Image, float qtile)
 
 	float* h_thresholded_image = (float*)malloc(sizeof(float)*NUMPIX);
 	
-	threshold_image(d_filteredImage, h_thresholded_image, quantile_value, min,
-			max);
+	unsigned char* bin_image = threshold_image(d_filteredImage, h_thresholded_image, quantile_value, min,max);
 	
-
+	return bin_image;
 
 }
 
 
-void filterImage(const float* const grayImage, int width_kernel_x, int  width_kernel_y, float sigmax, float sigmay)
+unsigned char* filterImage(const float* const grayImage, int width_kernel_x, int  width_kernel_y, float sigmax, float sigmay)
 {
 	
 	int nrow_kernel_y = 2*width_kernel_x + 1;
@@ -472,7 +466,7 @@ void filterImage(const float* const grayImage, int width_kernel_x, int  width_ke
 	matrix_multiplication(kernel_y, nrow_kernel_y,1,kernel_x, 1,ncol_kernel_x,
 			kernel);
 
-	if(debug)
+	if(debug_pre_process)
 	{
 		for(int i  =0;i<5;i++)
 		{
@@ -542,9 +536,9 @@ void filterImage(const float* const grayImage, int width_kernel_x, int  width_ke
 	*/
 
 	cudaMemcpy(h_filter_Image, d_filter_Image, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
-	getQuantile(d_filter_Image, h_filter_Image,0.985);
+	unsigned char* bin_image = getQuantile(d_filter_Image, h_filter_Image,0.985);
 	
-	if(debug)
+	if(debug_pre_process)
 	{
 		Mat output_image(IMAGE_HEIGHT,IMAGE_WIDTH, CV_32F);
 		for(int i = 0;i<IMAGE_HEIGHT;i++)
@@ -560,73 +554,46 @@ void filterImage(const float* const grayImage, int width_kernel_x, int  width_ke
 		waitKey(0);
 	}
 
-	
+	return bin_image;
+
 
 }
 
 
 
-void convert2Gray(const unsigned char* const rgbImage, unsigned char* grayImage,
-		float* h_grayImage_32f)
+unsigned char* convert2fp(const unsigned char* const h_grayImage)
 {
-	unsigned char* d_rgbImage;
 	unsigned char* d_grayImage;
 	float* d_grayImage_32f;
-	
 
-	cudaEventRecord(start);
-
-
-	cudaMalloc((void**)&d_rgbImage, 3*NUMPIX*sizeof(unsigned char));
+	cudaMalloc((void**)&d_grayImage, NUMPIX*sizeof(unsigned char));
 	CudaCheckError();
 	
-	cudaMalloc((void**)&d_grayImage, NUMPIX*sizeof(unsigned char));
-	//CudaCheckError();
-	
 	cudaMalloc((void**)&d_grayImage_32f, NUMPIX*sizeof(float));
-	//CudaCheckError();
+	CudaCheckError();
 
-	cudaMemset(d_grayImage, 0, sizeof(unsigned char)*NUMPIX);
-	//CudaCheckError();
-	
-	cudaMemset(d_grayImage_32f, 0, sizeof(float)*NUMPIX);
-	//CudaCheckError();
+	cudaMemcpy(d_grayImage, h_grayImage, NUMPIX*sizeof(unsigned char), cudaMemcpyHostToDevice);
+	CudaCheckError();
 
-	cudaMemcpy(d_rgbImage, rgbImage, 3*sizeof(unsigned char)*NUMPIX,cudaMemcpyHostToDevice);
-	//CudaCheckError();
-	
-	
-	dim3 blockSize(THREAD_X, THREAD_Y);
-	dim3 gridSize((IMAGE_WIDTH + blockSize.x -1)/blockSize.x, (IMAGE_HEIGHT + blockSize.y -1)/blockSize.y);
-	
-	rgb2gray<<<gridSize, blockSize>>>(d_grayImage, d_rgbImage, d_grayImage_32f);
-	cudaDeviceSynchronize();
-	//CudaCheckError();
-	
-	//cudaMemcpy(grayImage, d_grayImage, sizeof(unsigned char)*NUMPIX,cudaMemcpyDeviceToHost);
-	//CudaCheckError();
-	
-	//cudaMemcpy(h_grayImage_32f,d_grayImage_32f, sizeof(float)*NUMPIX, cudaMemcpyDeviceToHost);
-	//CudaCheckError();
+	cudaMemset(d_grayImage_32f, 0, NUMPIX*sizeof(float));
+	CudaCheckError();
 
-	filterImage(d_grayImage_32f, 2, 2 ,2,10);
+	const dim3 blockSize(THREAD_X, THREAD_Y);
+	const dim3 gridSize((IMAGE_WIDTH + blockSize.x -1)/blockSize.x,(IMAGE_HEIGHT + blockSize.y -1)/blockSize.y);
+	
+	uchar2fp<<<gridSize,blockSize>>>(d_grayImage, d_grayImage_32f);
+
+	unsigned char* bin_image = filterImage(d_grayImage_32f, 2, 2 ,2,10);
 
 	
-
-	if(debug)
+	
+	if(debug_pre_process)
 	{
-		Mat gray_image(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC1);
-		unsigned char* img = gray_image.data;
-		for(int i =0;i<IMAGE_HEIGHT;i++)
-		{
-			for(int j = 0;j<IMAGE_WIDTH;j++)
-			{
-				*(img + i*IMAGE_WIDTH + j) = *(grayImage + i*IMAGE_WIDTH + j);
+		float* h_grayImage_32f;
+		h_grayImage_32f = (float*)malloc(sizeof(float)*NUMPIX);
 
-			}
-
-		}
-		
+		cudaMemcpy(h_grayImage_32f, d_grayImage_32f, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
+		CudaCheckError();
 		Mat gray_image_32f(IMAGE_HEIGHT, IMAGE_WIDTH, CV_32F);
 		
 		for(int i =0;i<IMAGE_HEIGHT;i++)
@@ -642,6 +609,7 @@ void convert2Gray(const unsigned char* const rgbImage, unsigned char* grayImage,
 		cout<<gray_image_32f<<endl;
 	}
 
+	return bin_image; 
 }
 
 
@@ -653,6 +621,8 @@ void convert2Gray(const unsigned char* const rgbImage, unsigned char* grayImage,
 
 
 
+
+/*
 int main(int argc, char* argv[])
 {
 
@@ -675,3 +645,4 @@ int main(int argc, char* argv[])
 	
 
 }
+*/
