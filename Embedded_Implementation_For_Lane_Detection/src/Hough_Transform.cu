@@ -255,7 +255,7 @@ __global__ void getLines(const int * hough_space, float2* lines, int* votes, con
 
 }
 
-lin_votes* houghTransform(unsigned char const* const edges,const int numangle, const int numrho,float thetaStep, float rStep)
+lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numangle, const int numrho,float thetaStep, float rStep)
 {
 	/*	if(debug_hough)
 		{
@@ -302,6 +302,10 @@ lin_votes* houghTransform(unsigned char const* const edges,const int numangle, c
 		cudaMemcpy(&totalCount, counterPtr, sizeof(int),cudaMemcpyDeviceToHost);
 		//cout<<"Total Count :"<<totalCount<<endl;
 
+		unsigned int* clist = (unsigned int*)malloc(totalCount*sizeof(unsigned int));
+		cudaMemcpy(clist, glist, totalCount*sizeof(unsigned int),cudaMemcpyDeviceToHost);
+		CudaCheckError();
+		
 		if(debug_hough)
 		{
 			unsigned int* clist = (unsigned int*)malloc(totalCount*sizeof(unsigned int));
@@ -450,11 +454,20 @@ lin_votes* houghTransform(unsigned char const* const edges,const int numangle, c
 			waitKey(0);
 
 		}
-	
+
+		lines_w_non_zero* values = (lines_w_non_zero*)malloc(sizeof(lines_w_non_zero));
+		lin_votes* mem_hough_lines = (lin_votes*)malloc(sizeof(lin_votes));
+		values->hough_lines = mem_hough_lines;
+		values->hough_lines->lines = lines;
+		values->hough_lines->countlines = countlines;
+		values->clist = clist;
+		values->count = totalCount;
+
+		/*
 		lin_votes* hough_lines = (lin_votes*)malloc(sizeof(lin_votes));
 		hough_lines->lines = lines;
 		hough_lines->countlines = countlines;
-
+		*/
 		
 	
 	/*	
@@ -471,7 +484,7 @@ lin_votes* houghTransform(unsigned char const* const edges,const int numangle, c
 	
 	*/
 
-		return hough_lines;
+		return values;
 
 }
 
