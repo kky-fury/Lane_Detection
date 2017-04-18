@@ -32,6 +32,12 @@ typedef struct lin_votes
 
 }lin_votes;
 
+typedef struct lines_w_non_zero_t
+{
+	lin_votes* hough_lines;
+	unsigned int* clist;
+	int count;
+}lines_w_non_zero;
 
 /*Function Definitions*/
 
@@ -47,7 +53,8 @@ __global__ void getLines(const int *, float2*, int*, const int, const float, con
 
 //void houghTransform(unsigned char const * const,  unsigned int const,unsigned int* const,unsigned int* const );
 
-lin_votes* houghTransform(unsigned char const* const, const int, const int, float, float);
+//lin_votes* houghTransform(unsigned char const* const, const int, const int, float, float);
+lines_w_non_zero* houghTransform(unsigned char const* const, const int, const int, float, float);
 
 void print_houghspace(unsigned int* const array, int width);
 
