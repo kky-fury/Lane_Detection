@@ -62,7 +62,6 @@ int main(int argc, char* argv[])
 
 	unsigned char* ipm_image = bev.computeLookUpTable(h_grayImage);
 	
-	/*
 	Mat gray_IPM_image(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC1);
 	unsigned char* o_im  = gray_IPM_image.data;
 	for(int i =0 ;i< IMAGE_HEIGHT;i++)
@@ -70,19 +69,15 @@ int main(int argc, char* argv[])
 		for(int j =0;j<IMAGE_WIDTH;j++)
 		{
 			gray_IPM_image.at<unsigned char>(i,j) = *(ipm_image + i*IMAGE_WIDTH + j);
-
 			//cout<<(int)*(ipm_image + i*IMAGE_WIDTH + j)<<"\t";
-
 		}
 	}
 	
-	imshow("Result", gray_IPM_image);
-	waitKey(0);
-	*/
+	//imshow("Result", gray_IPM_image);
+	//waitKey(0);
 
 	unsigned char* bin_image = convert2fp(ipm_image);
 
-	/*
 	Mat output_image(ROI_IMAGE_HEIGHT, ROI_IMAGE_WIDTH, CV_8UC1);
 	unsigned char* poutputimage = output_image.data;
 	for(int i  =0;i<ROI_IMAGE_HEIGHT;i++)
@@ -96,9 +91,44 @@ int main(int argc, char* argv[])
 	
 	imshow("Result", output_image);
 	waitKey(0);
-	*/
 
 
+	float rMin = 0;
+	float rMax = (IMG_WIDTH + IMG_HEIGHT)*2 + 1;
+	float rStep = 1.0;
+
+	float thetaMax = 180;
+	float thetaMin = 0;
+	float thetaStep = 1;
+
+	const int numangle = std::round((thetaMax - thetaMin)/thetaStep);
+	const int numrho = std::round(rMax/rStep);
+
+	lin_votes* hough_lines = houghTransform(bin_image, numangle, numrho, thetaStep, rStep);
+
+	int line_count = hough_lines->countlines;
+	for(int i  =0;i<line_count;i++)
+	{
+		float theta_line = (hough_lines->lines + i)->y;
+		float rho = (hough_lines->lines + i)->x;
+
+		cv::Point pt1, pt2;
+		double a = cos(theta_line);
+		double b = sin(theta_line);
+
+		double x0 = a*rho;
+		double y0 = b*rho;
+
+		pt1.x = (int)(x0 + 400*(-b));
+		pt1.y = (int)(y0 + 400*(a));
+		pt2.x = (int)(x0 - 400*(-b));
+		pt2.y = (int)(x0 - 400*(a));
+
+		line(gray_IPM_image, pt1,pt2, (255,0,0),1);
+	}
+	
+	imshow("Inital Guess After Hough", gray_IPM_image);
+	waitKey(0);
 
 
 
