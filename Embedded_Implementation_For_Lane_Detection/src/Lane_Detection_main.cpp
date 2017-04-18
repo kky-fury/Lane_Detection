@@ -78,6 +78,7 @@ int main(int argc, char* argv[])
 
 	unsigned char* bin_image = convert2fp(ipm_image);
 
+	/*
 	Mat output_image(ROI_IMAGE_HEIGHT, ROI_IMAGE_WIDTH, CV_8UC1);
 	unsigned char* poutputimage = output_image.data;
 	for(int i  =0;i<ROI_IMAGE_HEIGHT;i++)
@@ -91,7 +92,7 @@ int main(int argc, char* argv[])
 	
 	imshow("Result", output_image);
 	waitKey(0);
-
+	*/
 
 	float rMin = 0;
 	float rMax = (IMG_WIDTH + IMG_HEIGHT)*2 + 1;
@@ -104,21 +105,26 @@ int main(int argc, char* argv[])
 	const int numangle = std::round((thetaMax - thetaMin)/thetaStep);
 	const int numrho = std::round(rMax/rStep);
 
-	lin_votes* hough_lines = houghTransform(bin_image, numangle, numrho, thetaStep, rStep);
+	lines_w_non_zero* values = houghTransform(bin_image, numangle, numrho, thetaStep, rStep);
 
-	int line_count = hough_lines->countlines;
+	int line_count = values->hough_lines->countlines;
+	cout<<"Line Count \t"<<line_count<<endl;
+
+	/*
 	for(int i  =0;i<line_count;i++)
 	{
-		float theta_line = (hough_lines->lines + i)->y;
-		float rho = (hough_lines->lines + i)->x;
+		//float theta_line = (hough_lines->lines + i)->y;
+		//float rho = (hough_lines->lines + i)->x;
 
-		cv::Point pt1, pt2;
+		float theta_line = (values->hough_lines->lines + i)->y;
+		float rho = (values->hough_lines->lines + i)->x;
 		double a = cos(theta_line);
 		double b = sin(theta_line);
 
 		double x0 = a*rho;
 		double y0 = b*rho;
 
+		cv::Point pt1, pt2;
 		pt1.x = (int)(x0 + 400*(-b));
 		pt1.y = (int)(y0 + 400*(a));
 		pt2.x = (int)(x0 - 400*(-b));
@@ -126,9 +132,37 @@ int main(int argc, char* argv[])
 
 		line(gray_IPM_image, pt1,pt2, (255,0,0),1);
 	}
-	
 	imshow("Inital Guess After Hough", gray_IPM_image);
 	waitKey(0);
+	*/
+
+	vector<Line> line_objects(line_count);
+	getLineObjects(line_objects, values->hough_lines, IMAGE_WIDTH, IMAGE_HEIGHT);
+	
+	/*
+	Linepoint startpoint, endpoint;
+	for(int i =0;i<line_objects.size();i++)
+	{
+		startpoint = line_objects[i].getstartpoint();
+		endpoint = line_objects[i].getendpoint();
+	//	cout<<"StartPoint  \t"<<"X_coordinate \t"<<startpoint.x<<"\t"<<"Y_Coordinate \t"<<startpoint.y<<endl;
+	//	cout<<"EndPoint \t"<<"X_coordinate \t"<<endpoint.x<<"\t"<<"Y_Coordinate \t"<<endpoint.y<<endl;
+		cv::Point pt1, pt2;
+		pt1.x = startpoint.x;
+		pt1.y = startpoint.y;
+
+		pt2.x = endpoint.x;
+		pt2.y = endpoint.y;
+
+		line(gray_IPM_image, pt1,pt2, (255,0,0),1);
+	
+	}
+	imshow("Result", gray_IPM_image);
+	waitKey(0);
+	*/
+
+	initializePoints(line_objects, values->clist, values->count);	
+
 
 
 
