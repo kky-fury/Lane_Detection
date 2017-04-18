@@ -17,14 +17,6 @@
 #define IMG_HEIGHT 224
 #define IMG_SIZE (IMG_WIDTH*IMG_HEIGHT)
 
-#define HS_STEP		1
-#define HS_ANGLES	(90/HS_STEP + 1)
-#define HS_1_WIDTH	(IMG_HEIGHT + IMG_WIDTH + IMG_HEIGHT)
-#define HS_1_SIZE	(HS_1_WIDTH * HS_ANGLES)
-#define HS_2_WIDTH	(IMG_WIDTH + IMG_HEIGHT + IMG_WIDTH)
-#define HS_2_SIZE	(HS_2_WIDTH * HS_ANGLES)
-
-
 /*defintion to expand macros*/
 #define STR(x)   #x
 #define SHOW_DEFINE(x) printf("%s=%s\n", #x, STR(x))
@@ -32,6 +24,13 @@
 
 using namespace std;
 using namespace cv;
+
+typedef struct lin_votes
+{
+	float2* lines;
+	int countlines;
+
+}lin_votes;
 
 
 /*Function Definitions*/
@@ -48,7 +47,7 @@ __global__ void getLines(const int *, float2*, int*, const int, const float, con
 
 //void houghTransform(unsigned char const * const,  unsigned int const,unsigned int* const,unsigned int* const );
 
-void houghTransform(unsigned char const* const, const int, const int, float, float);
+lin_votes* houghTransform(unsigned char const* const, const int, const int, float, float);
 
 void print_houghspace(unsigned int* const array, int width);
 
