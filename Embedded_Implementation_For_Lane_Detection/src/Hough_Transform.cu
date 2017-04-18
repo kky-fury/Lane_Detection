@@ -5,8 +5,8 @@
 #include"hough.hpp"
 #include"cuda_error_check.hpp"
 bool debug_hough = false;
-#define THREADS_X 	32
-#define THREADS_Y	4
+#define THREADS_X_HOUGH	32
+#define THREADS_Y_HOUGH	4
 #define PIXELS_PER_THREAD 16
 
 
@@ -38,51 +38,13 @@ void print_image(unsigned char *image, int height, int width)
 
 }
 
-
-void print_houghspace(unsigned int* const array, int width)
-{
-		
-		for(int i =0;i<HS_ANGLES;i++)
-		{
-			for(int j = 0;j<width;j++)
-			{
-				cout<<array[i*width + j]<<"\t";
-
-			}
-			cout<<endl;
-
-		}
-
-}
-
-int getMaximum(unsigned int* const array, int width)
-{
-
-	int maximum = *(array + 0);
-
-	for(int i =0;i<HS_ANGLES;i++)
-	{
-		for(int j =0 ;j<width;j++)
-		{
-			if(array[i*width + j] > maximum)
-				maximum = array[i*width + j];
-		
-
-		}
-			
-
-	}
-	return maximum;
-
-}
-
 /*__global__ void Hough(unsigned char const* const image, unsigned int const
 		threshold, unsigned int* const houghspace_1, unsigned int* const houghspace_2)
 {
 	int const x = blockIdx.x*blockDim.x + threadIdx.x;
 	int const y = blockIdx.y*blockDim.y + threadIdx.y;
-	__shared__ float sh_m_array[THREADS_X*THREADS_Y];
-	int const n = threadIdx.y*THREADS_X + threadIdx.x;
+	__shared__ float sh_m_array[THREADS_X_HOUGH*THREADS_Y_HOUGH];
+	int const n = threadIdx.y*THREADS_X_HOUGH + threadIdx.x;
 
 	//Debugging
 	//printf("n value : %d \n", n);
@@ -235,18 +197,6 @@ __global__ void fillHoughSpace(unsigned int* const list, const int count, int*
 }
 
 
-/*__global__ void test_kernel(void)
-{
-
-	int x = threadIdx.x;
-	printf("%d \n", x);
-
-
-}
-
-*/
-
-
 __global__ void getLines(const int * hough_space, float2* lines, int* votes, const int
 		maxLines, const float rho, const float theta, const int threshold, const
 		int numrho, const int rhspace)
@@ -291,7 +241,7 @@ __global__ void getLines(const int * hough_space, float2* lines, int* votes, con
 			//*(lines + index) = make_float2(radius, angle);
 			(lines +  index)->x = radius;
 			(lines + index)->y = angle;
-			printf("value of radius - %f and value of angle - %f and curVotes - %d \n ", (lines +index)->x,(lines + index)->y, curVotes);
+			//printf("value of radius - %f and value of angle - %f and curVotes - %d \n ", (lines +index)->x,(lines + index)->y, curVotes);
 			*(votes + index) = curVotes;
 
 		}
@@ -305,9 +255,7 @@ __global__ void getLines(const int * hough_space, float2* lines, int* votes, con
 
 }
 
-void houghTransform(unsigned char const* const edges,const int numangle, const
-		int numrho,float thetaStep, float
-		rStep)
+lin_votes* houghTransform(unsigned char const* const edges,const int numangle, const int numrho,float thetaStep, float rStep)
 {
 	/*	if(debug_hough)
 		{
@@ -319,7 +267,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		}
 	*/
 		/*Replace by maximum function using cuda*/
-		const int threshold = 39;
+		const int threshold = 35;
 
 		unsigned char* gimage;	
 		unsigned int* glist; 
@@ -344,7 +292,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		cudaMemcpy(gimage, edges, IMG_SIZE*sizeof(unsigned char),cudaMemcpyHostToDevice);
 		CudaCheckError();
 		
-		dim3 dimBlock1(THREADS_X, THREADS_Y);
+		dim3 dimBlock1(THREADS_X_HOUGH, THREADS_Y_HOUGH);
 		dim3 dimGrid1(1, 56);
 		getNonzeroEdgepoints<<<dimGrid1,dimBlock1>>>(gimage, glist);
 		CudaCheckError();
@@ -352,7 +300,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 
 		int totalCount ;
 		cudaMemcpy(&totalCount, counterPtr, sizeof(int),cudaMemcpyDeviceToHost);
-		cout<<"Total Count :"<<totalCount<<endl;
+		//cout<<"Total Count :"<<totalCount<<endl;
 
 		if(debug_hough)
 		{
@@ -378,7 +326,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 		int rhspace = numangle + 2;
 		int colhspace = numrho + 2;
 		
-		cout<<"rows : "<<rhspace<<endl;
+		//cout<<"rows : "<<rhspace<<endl;
 
 		const dim3 block(1024);
 		const dim3 grid(rhspace -2);
@@ -432,6 +380,9 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 
 		cudaMalloc((void**)&d_lines,maxLines*sizeof(float2));
 		CudaCheckError();	
+
+		cudaMalloc((void**)&d_votes, maxLines*sizeof(int));
+		CudaCheckError();
 
 		void *counterPtr_lines;			
 		cudaGetSymbolAddress(&counterPtr_lines, g_counter_lines);
@@ -499,7 +450,13 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 			waitKey(0);
 
 		}
+	
+		lin_votes* hough_lines = (lin_votes*)malloc(sizeof(lin_votes));
+		hough_lines->lines = lines;
+		hough_lines->countlines = countlines;
 
+		
+	
 	/*	
 		if(debug_hough)
 		{	
@@ -514,6 +471,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 	
 	*/
 
+		return hough_lines;
 
 }
 
@@ -529,7 +487,7 @@ void houghTransform(unsigned char const* const edges,const int numangle, const
 
 
 
-
+/*
 int main(int argc, char* argv[])
 {
 
@@ -569,8 +527,9 @@ int main(int argc, char* argv[])
 		cout<<width<<endl;
 		cout<<height<<endl;	
 	}
-
+*/
 	/*Convert array to uchar* (0-255)*/	
+/*
 	unsigned char *edge_image = src_host.data;
 	if(debug_hough)
 	{
@@ -580,6 +539,7 @@ int main(int argc, char* argv[])
 	//unsigned char* rowptr = edge_image + 2*IMG_WIDTH;
 	//cout<<(int)*rowptr<<endl;
 
+*/	
 	/*unsigned int* houghspace_gpu_1 = (unsigned int*)malloc(HS_1_SIZE*sizeof(unsigned int));
 	unsigned int* houghspace_gpu_2 = (unsigned int*)malloc(HS_2_SIZE*sizeof(unsigned int));
 	
@@ -587,7 +547,7 @@ int main(int argc, char* argv[])
 
 	houghTransform(edge_image, threshold, houghspace_gpu_1, houghspace_gpu_2);	
 	*/
-		
+/*		
 	float rMin = 0;
 	float rMax = (IMG_WIDTH + IMG_HEIGHT)*2 + 1;
 	float rStep = 1.0;
@@ -636,16 +596,5 @@ int main(int argc, char* argv[])
 	
 	houghTransform(edge_image, numangle, numrho,thetaStep, rStep);
 	
-	
-
-
-
-	
-
-
-
-
-
-
-
 }
+*/
