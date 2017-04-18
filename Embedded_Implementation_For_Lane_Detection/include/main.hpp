@@ -5,7 +5,7 @@
 #include"cuda_error_check.hpp"
 #include"preprocess.hpp"
 #include"rgb2gray.hpp"
-
+#include"hough.hpp" 
 
 
 
