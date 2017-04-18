@@ -6,7 +6,7 @@
 #include"preprocess.hpp"
 #include"rgb2gray.hpp"
 #include"hough.hpp" 
-
+#include"line.hpp"
 
 
 #endif
