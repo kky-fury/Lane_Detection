@@ -261,14 +261,9 @@ float* getMatrix(matrix_t Tr33, float* h_B, int numBRows, int numBColumns)
 	
 	h_C = (float*)malloc(numCRows*numCColumns*sizeof(float));
 
-	//double e3 = getTickCount();
-	//cudaSetDevice(0);
 	cudaMalloc((void**)&d_A, sizeof(float) * numARows * numAColumns);
 	cudaMalloc((void**)&d_B, sizeof(float) * numBRows * numBColumns);
 	cudaMalloc((void**)&d_C, sizeof(float) * numCRows * numCColumns);
-	//double e4 = getTickCount();
-	//double time_alloc = (e4 - e3)/getTickFrequency();
-	//cout<<"Time for mem alloc"<<time_alloc<<endl;
 
 	cudaMemcpy(d_A, h_A, sizeof(float) * numARows * numAColumns, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_B, h_B, sizeof(float) * numBRows * numBColumns, cudaMemcpyHostToDevice);
@@ -276,9 +271,6 @@ float* getMatrix(matrix_t Tr33, float* h_B, int numBRows, int numBColumns)
 	int dim_grid_x = (numCColumns - 1)/TILE_WIDTH +1;
 	int dim_grid_y = (numCRows -1)/TILE_WIDTH + 1;
 
-	//double e2 = getTickCount();
-	//double time = (e2 -e1)/getTickFrequency();
-	//cout<<"Time for allocation"<<time<<endl;
 
 	dim3 dimGrid(dim_grid_x, dim_grid_y);
 	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
@@ -301,12 +293,6 @@ float* getMatrix(matrix_t Tr33, float* h_B, int numBRows, int numBColumns)
 		}
 	}
 
-	//double e2 = getTickCount();
-	//double time = (e2 -e1)/getTickFrequency();
-	
-	//cout<<"Time for allocation"<<time<<endl;
-
-
 	float* row_ptr_0 = h_C;
 	float* row_ptr_1 = h_C + numCColumns;
 	float* row_ptr_2 = h_C + 2*numCColumns;
@@ -323,11 +309,6 @@ float* getMatrix(matrix_t Tr33, float* h_B, int numBRows, int numBColumns)
 	cudaFree(d_A);
 	cudaFree(d_B);
 	cudaFree(d_C);
-
-	//double e2 = getTickCount();
-	//double time = (e2 -e1)/getTickFrequency();
-	
-	//cout<<"Time for allocation"<<time<<endl;
 	
 	return h_C;
 
@@ -338,7 +319,6 @@ float* getMatrix(matrix_t Tr33, float* h_B, int numBRows, int numBColumns)
 BevParams::BevParams(float bev_res, tuple_int bev_xLimits, tuple_int bev_zLimits, tuple_int imSize)
 {
 	
-	//this->bev_size = make_tuple(round((get<1>(bev_zLimits) - get<0>(bev_zLimits))/bev_res),round((get<1>(bev_xLimits) -get<0>(bev_xLimits))/bev_res));
 	this->bev_size = {static_cast<int>(std::round((bev_zLimits.b - bev_zLimits.a)/bev_res)), static_cast<int>(std::round((bev_xLimits.b - bev_xLimits.a)/bev_res))};	
 	this->bev_res = bev_res;
 	this->bev_xLimits = bev_xLimits;
@@ -362,18 +342,8 @@ Calibration::Calibration()
 
 void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_road)
 {
-	//double e1 = getTickCount();
 	this->P2 = P2;
 	(this->R0_Rect).resize(4,row_t(4,0));
-
-	
-	/*
-	* Slower than iterator
-	for(int i = 0;i<R0_rect.size();i++)
-	{
-		std::copy(R0_rect[i].begin(), R0_rect[i].end(), (this->R0_Rect)[i].begin());
-	}
-	*/
 	
 	matrix_t::iterator row,i;
 	row_t::iterator column,j;
@@ -409,11 +379,6 @@ void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_
 
 	}
 	this->Tr33 = this->Tr;
-	
-	//double e2 = getTickCount();
-	//double time =  (e2 - e1)/getTickFrequency();
-
-	//cout<<"Time for Calibration"<<time<<endl;
 
 }
 
@@ -447,10 +412,7 @@ void BirdsEyeView::set_matrix33(matrix_t Tr33)
 
 void BirdsEyeView::initialize()
 {
-	//double e6 =  getTickCount();
-
-	//Size size =  image.size();
-	//this->imSize = {size.width, size.height};
+	
 	this->imSize = {IMAGE_WIDTH_GRAY, IMAGE_HEIGHT_GRAY};
 
 	float res = (this->bevParams)->bev_res;
@@ -460,8 +422,7 @@ void BirdsEyeView::initialize()
 		
 	double init_value_x = (this->bevParams)->bev_xLimits.a + res/2;
 	double init_value_z = (this->bevParams)->bev_zLimits.b - res/2;
-	
-	//double e1 = getTickCount();
+
 	
 	row_t x_vec(x_vec_length), z_vec(z_vec_length);
 	
@@ -476,32 +437,6 @@ void BirdsEyeView::initialize()
 		z_vec[i] = init_value_z;
 		init_value_z -= res;
 	}
-
-	//double e2 = getTickCount();
-
-	//double time = (e2 - e1)/getTickFrequency();
-	//cout<<"Time to fill vectors"<<time<<endl;
-
-	/*
-	h_row_t x_vec(x_vec_length), z_vec(z_vec_length);
-	
-	for(int i =0 ;i<x_vec_length;i++)
-	{
-		x_vec[i] = init_value_x;
-		init_value_x +=res;
-			
-	}
-	for(int i =0;i<z_vec_length;i++)
-	{
-
-		z_vec[i] = init_value_z;
-		init_value_z -=res;
-	}
-	double e2 = getTickCount();
-
-	double time = (e2 - e1)/getTickFrequency();
-	cout<<"Time to fill vectors"<<time<<endl;
-	*/
 
 	
 	int vec_size = (this->bevParams)->bev_size.a*(this->bevParams)->bev_size.b;
@@ -530,7 +465,6 @@ void BirdsEyeView::initialize()
 	
 	//double e3 = getTickCount();
 	
-	/*Highly Optimized than std::copy*/
 	for(row_x = x_mesh_vec.begin(), row_z = z_mesh_vec.begin(), 
 		row_y  = y_world.begin(), row_uv_0 = uv_mat[0].begin(), row_uv_1 = uv_mat[1].begin(),
 		row_uv_2 = uv_mat[2].begin(); row_x != x_mesh_vec.end(); row_x++, row_z++, row_y++, row_uv_0++, row_uv_1++, row_uv_2++)
@@ -541,17 +475,7 @@ void BirdsEyeView::initialize()
 	}
 	
 
-	//double e4 = getTickCount();
-	
-	//double time_to_populate = (e4 -e3)/getTickCount();
-	//cout<<"Time to Populate \t"<<time_to_populate<<endl;
-
 	this->uvMat = uv_mat;
-
-	//double e7 = getTickCount();
-	//double time_for_init = (e7-e6)/getTickFrequency();
-
-	//cout<<"Time for init"<<time_for_init<<endl;
 	
 	this->numBRows = uv_mat.size();
 	this->numBColumns = uv_mat[0].size();
@@ -598,7 +522,6 @@ void BirdsEyeView::initialize()
     	cout<<endl;
 	}
 
-	/*dummy cudaMalloc to init device*/
 	float* d_B;
 	cudaMalloc((void**)&d_B, sizeof(float)*this->numBRows*this->numBColumns);
 	cudaFree(d_B);
@@ -627,7 +550,6 @@ BirdsEyeView::BirdsEyeView(float bev_res, double invalid_value, tuple_int bev_xR
 unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 {
 
-	//double e1 = getTickCount();
 	float* result = getMatrix(this->Tr33, this->h_B,this->numBRows, this->numBColumns);
 	
 	if(debug_bev)
@@ -695,11 +617,7 @@ unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 	vector<int>::const_iterator m,k;
 	row_t::const_iterator i,j;
 
-//	Mat output_image((this->bevParams)->bev_size.a,(this->bevParams)->bev_size.b,CV_8UC1);
-
-	//unsigned char* i_im = image.data;
 	unsigned char* i_im = image;
-	//unsigned char* o_im = output_image.data;
 
 	unsigned char* o_im  = (unsigned char*)malloc((this->bevParams)->bev_size.a*(this->bevParams)->bev_size.b);
 
@@ -717,109 +635,10 @@ unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 
 	}
 	
-	/*
-	for(int i =0;i<400;i++)
-	{
-		for(int j  =0;j<200;j++)
-		{
-			output_image.at<unsigned char>(i, j) = *(o_im + i*200 + j);
-		}
-	}
-	*/
-	//imshow("result", output_image);
-	//waitKey(0);
-	/*
-	imshow("result", output_image);
-	waitKey(0);	
-
-	double e2 = getTickCount();
-	double time_lookup = (e2 -e1)/getTickFrequency();
-	cout<<"Time for lookup \t"<<time_lookup<<endl;
-	*/
-
 	return o_im;
 }
 
 
 
 
-
-
-
-
-/*
-int main(int argc, char* argv[])
-{		
-	Mat test_image = imread("/home/nvidia/Lane_Detection/Original_Images/img_0.png", CV_LOAD_IMAGE_GRAYSCALE);
-	
-	if(debug_bev)
-	{
-		imshow("Test_image", test_image);
-		waitKey(0);
-	
-	}
-*/
-	/*define Parameters*/
-/*
-	float bev_res = 0.1;
-	tuple_int bev_xRange_minMax = {-10,10};
-	tuple_int bev_zRange_minMax = {6, 46};
-	float invalid_value = -numeric_limits<float>::infinity(); 
-
-	BirdsEyeView bev(bev_res, invalid_value,bev_xRange_minMax, bev_zRange_minMax);
-*/	
-/*Projection matrix for left color camera in rectified coordinates*/
-/*3x4*/
-/*
-	matrix_t P2
-	{
-		{7.215377000000e+02, 0.000000000000e+00, 6.095593000000e+02, 4.485728000000e+01},
-		{0.000000000000e+00 ,7.215377000000e+02 ,1.728540000000e+02 ,2.163791000000e-01},
-		{0.000000000000e+00, 0.000000000000e+00, 1.000000000000e+00, 2.745884000000e-03}
-		
-	};
-*/
-	/*Initialize Rotation Matrix (3x3) */
-/*
-	matrix_t R0_rect
-	{
-		{9.999239000000e-01, 9.837760000000e-03, -7.445048000000e-03},
-		{-9.869795000000e-03, 9.999421000000e-01,-4.278459000000e-03},
-		{7.402527000000e-03, 4.351614000000e-03, 9.999631000000e-01}
-	};
-*/	
-	/*Rigid transformation from (non-rectified) camera to road coordinates (3x4)*/
-/*	
-	matrix_t Tr_cam_to_road
-	{
-		{9.999044710077e-01,-1.170165577363e-02, -7.360826724365e-03, 1.911984983337e-02},
-		{1.160251828357e-02,9.998432738993e-01,-1.336987011872e-02,-1.562198078590e+00},
-		{7.516122576373e-03, 1.328318612284e-02, 9.998834806284e-01,2.752775890648e-01}
-	
-	};
-*/
-/*
-	bev.setup(P2, R0_rect, Tr_cam_to_road);
-	bev.initialize();
-	unsigned char* image = test_image.data;
-	
-	unsigned char* o_im = bev.computeLookUpTable(image);
-	Mat output_image(400, 200, CV_8UC1);
-
-	unsigned char* poutput_image = output_image.data;
-
-	for(int i  =0;i<400;i++)
-	{
-		for(int j = 0;j<200;j++)
-		{
-		
-			*(poutput_image + i*200 + j) = *(o_im + i*200 + j);
-		}
-
-	}
-
-	imshow("result", output_image);
-	waitKey(0);
-*/
-//}
 
