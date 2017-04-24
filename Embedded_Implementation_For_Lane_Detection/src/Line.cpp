@@ -41,8 +41,6 @@ void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines, int imag
 		float theta_line = (hough_lines->lines + i)->y;
 		float rho = (hough_lines-> lines + i)->x;
 		line_coord* coordinates = getLineEndPoints(rho, theta_line, image_width, image_height);
-		//Line* line_obj = new Line(coordinates);
-		//line_objects[i] = line_obj;		
 		Line line_obj;
 		line_obj.setPoints(coordinates);
 		line_objects[i] = line_obj;
