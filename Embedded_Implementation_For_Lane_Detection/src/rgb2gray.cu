@@ -22,20 +22,6 @@ __global__ void rgb_2_gray(unsigned char* d_grayImage, const unsigned char* cons
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 unsigned char* rgb2gray(const unsigned char* const rgbImage)
 {
 

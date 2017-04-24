@@ -10,7 +10,6 @@ void print_int_vector(vector<int>& vec)
 
 	cout<<endl;
 
-
 }
 
 Linepoint Line:: getstartpoint()
@@ -90,7 +89,27 @@ void initializeLinePoints(vector<Linepoint>& x_y_points, vector<Line>& line_obje
 		cout<<"X Limit Max"<<x_limit_max<<endl;
 		cout<<"X Limit Min"<<x_limit_min<<endl;
 		*/
-			
+		int size = x_limit_max - (x_limit_min -1) + 1;
+		
+		vector<int> search_points(size);
+		int j;
+		for(int k = x_limit_min - 1, j=0;k<=x_limit_max;k++,j++)
+		{
+				search_points[j] = k; 
+		}
+	
+		//print_int_vector(search_points);	
+		vector<Linepoint>::const_iterator it;
+		for(it = x_y_points.begin();it<x_y_points.end();it++)
+		{
+			vector<int>::iterator iter;
+			iter = find(search_points.begin(), search_points.end(), it->x);
+			if(iter != search_points.end())
+			{
+				line_objects[i].x_y_points.push_back({it->x,it->y});				
+			}
+		}
+		
 	}
 
 

@@ -179,8 +179,7 @@ __global__ void fillHoughSpace(unsigned int* const list, const int count, int*
 		const int y = (val >> 16) & 0xFFFF;
 		int r = __float2int_rn(x*cosVal + y*sinVal);
 		//printf("The value of x %d and the value of y %d : the value of r %d \n",x,y,r);
-		r += shift;
-		
+		r += shift;		
 		atomicAdd(&smem[r+1],1);
 	}
 	
@@ -487,17 +486,6 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		return values;
 
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 /*

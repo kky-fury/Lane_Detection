@@ -4,14 +4,21 @@
 int main(int argc, char* argv[])
 {
 
-
 	Mat input_image =  imread("/home/nvidia/Lane_Detection/Original_Images/img_0.png");
+
 	
 	unsigned char* h_rgb_img = input_image.data;
+	/*
+	auto begin_rgb_2_gray = std::chrono::high_resolution_clock::now();
 	unsigned char* h_grayImage =  rgb2gray(h_rgb_img);
+	auto end_rgb_2_gray = std::chrono::high_resolution_clock::now();
+
+	cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end_rgb_2_gray-begin_rgb_2_gray).count() << "ns" << std::endl;
 
 	Mat gray_image(IMAGE_HEIGHT_RGB, IMAGE_WIDTH_RGB, CV_8UC1);
 	unsigned char* img = gray_image.data;
+	*/
+	
 	/*
 	for(int i =0;i<IMAGE_HEIGHT_RGB;i++)
 	{
@@ -59,6 +66,12 @@ int main(int argc, char* argv[])
 
 	bev.setup(P2, R0_rect, Tr_cam_to_road);
 	bev.initialize();
+
+	//auto begin = std::chrono::high_resolution_clock::now();
+	unsigned char* h_grayImage =  rgb2gray(h_rgb_img);
+
+	Mat gray_image(IMAGE_HEIGHT_RGB, IMAGE_WIDTH_RGB, CV_8UC1);
+	unsigned char* img = gray_image.data;
 
 	unsigned char* ipm_image = bev.computeLookUpTable(h_grayImage);
 	
@@ -108,7 +121,7 @@ int main(int argc, char* argv[])
 	lines_w_non_zero* values = houghTransform(bin_image, numangle, numrho, thetaStep, rStep);
 
 	int line_count = values->hough_lines->countlines;
-	cout<<"Line Count \t"<<line_count<<endl;
+	//cout<<"Line Count \t"<<line_count<<endl;
 
 	/*
 	for(int i  =0;i<line_count;i++)
@@ -163,10 +176,27 @@ int main(int argc, char* argv[])
 
 	initializePoints(line_objects, values->clist, values->count);	
 
+	/*
+	for(int i =0;i<line_objects.size();i++)
+	{
+		for(int j = 0;j<line_objects[i].x_y_points.size();j++)
+		{
+			cout<<"X Coordinate \t"<<line_objects[i].x_y_points[j].x<<"\t"<<"Y Coordinate \t"<<line_objects[i].x_y_points[j].y<<"\t";
+
+		}
+
+		cout<<endl;
+	}
+	*/
 
 
+	fit_line(line_objects, gray_IPM_image);
+	//auto end = std::chrono::high_resolution_clock::now();
+	//cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
 
-
+	imshow("Result", gray_IPM_image);
+	waitKey(0);
+	
 
 
 }
