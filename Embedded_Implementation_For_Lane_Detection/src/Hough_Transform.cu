@@ -9,6 +9,10 @@ bool debug_hough = false;
 #define THREADS_Y_HOUGH	4
 #define PIXELS_PER_THREAD 16
 
+__device__ static int g_counter;
+__device__ static int g_counter_lines;
+extern __shared__ int shmem[];
+
 
 void print_array(float *arr, int size)
 {
@@ -38,45 +42,6 @@ void print_image(unsigned char *image, int height, int width)
 
 }
 
-/*__global__ void Hough(unsigned char const* const image, unsigned int const
-		threshold, unsigned int* const houghspace_1, unsigned int* const houghspace_2)
-{
-	int const x = blockIdx.x*blockDim.x + threadIdx.x;
-	int const y = blockIdx.y*blockDim.y + threadIdx.y;
-	__shared__ float sh_m_array[THREADS_X_HOUGH*THREADS_Y_HOUGH];
-	int const n = threadIdx.y*THREADS_X_HOUGH + threadIdx.x;
-
-	//Debugging
-	//printf("n value : %d \n", n);
-
-
-	sh_m_array[n]  =  (n-((HS_ANGLES-1)/2.0f)) / (float)((HS_ANGLES-1)/2.0f);
-	//printf("shared_array_value : %f \t at postion : %d with thread indexes x: \
-	//		%d and \t y : %d \n",sh_m_array[n], n, threadIdx.x, threadIdx.y);
-	__syncthreads();
-
-	unsigned char pixel = image[y*IMG_WIDTH + x];
-	if(pixel >= threshold)
-	{
-		for(int n = 0;n<HS_ANGLES;n++)
-		{
-			float const m = sh_m_array[n];
-			int const b1 = x - (int)(y*m) + IMG_HEIGHT;
-			int const b2 = y - (int)(x*m) + IMG_WIDTH;
-		
-			atomicAdd(&houghspace_1[n*HS_1_WIDTH+b1], 1);
-			atomicAdd(&houghspace_2[n*HS_2_WIDTH+b2], 1);
-		}
-	}
-
-	
-
-}
-*/
-
-__device__ static int g_counter;
-__device__ static int g_counter_lines;
-extern __shared__ int shmem[];
 
 __global__ void getNonzeroEdgepoints(unsigned char const* const image, unsigned int* const list)
 {
@@ -102,10 +67,8 @@ __global__ void getNonzeroEdgepoints(unsigned char const* const image, unsigned 
 			if(srcRow[xx])
 			{
 				const unsigned int val = (y<<16)|xx;
-				//Atomic
 				const int qidx = atomicAdd(&s_qsize[threadIdx.y],1);
 				s_queues[threadIdx.y][qidx] = val;
-
 
 			}
 
@@ -488,114 +451,3 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 }
 
 
-/*
-int main(int argc, char* argv[])
-{
-
-	Mat src_host = imread("/home/nvidia/Binary_test_image_for_cuda_ht_1.png",
-			CV_8UC1);
-
-	if(debug_hough)
-	{
-		cout<<"cols"<<src_host.cols<<endl;
-		cout<<"rows"<<src_host.rows<<endl;
-	}
-
-	//cout<<src_host<<endl;
-	//cout<<src_host.at<unsigned int>(48,34)<<endl;
-	int count = 0;
-	//cout<<src_host<<endl;
-		
-	count = countNonZero(src_host);
-	if(debug_hough)
-	{
-		cout<<count<<endl;
-	
-	}
-
-	Size size = src_host.size();
-	int width = size.width;
-	int height = size.height;
-
-	if(debug_hough)
-	{
-		imshow("Result",src_host);
-		waitKey(0);
-		Size size = src_host.size();
-		cout<<size<<endl;
-		int width = size.width;
-		int height = size.height;	
-		cout<<width<<endl;
-		cout<<height<<endl;	
-	}
-*/
-	/*Convert array to uchar* (0-255)*/	
-/*
-	unsigned char *edge_image = src_host.data;
-	if(debug_hough)
-	{
-		print_image(edge_image, height,width);	
-	
-	}
-	//unsigned char* rowptr = edge_image + 2*IMG_WIDTH;
-	//cout<<(int)*rowptr<<endl;
-
-*/	
-	/*unsigned int* houghspace_gpu_1 = (unsigned int*)malloc(HS_1_SIZE*sizeof(unsigned int));
-	unsigned int* houghspace_gpu_2 = (unsigned int*)malloc(HS_2_SIZE*sizeof(unsigned int));
-	
-	unsigned int const threshold = 50;
-
-	houghTransform(edge_image, threshold, houghspace_gpu_1, houghspace_gpu_2);	
-	*/
-/*		
-	float rMin = 0;
-	float rMax = (IMG_WIDTH + IMG_HEIGHT)*2 + 1;
-	float rStep = 1.0;
-
-	float thetaMin = 0;
-	float thetaMax = 180;
-	float thetaStep = 1;
-	
-	const int numangle = std::round((thetaMax - thetaMin)/thetaStep);
-	const int numrho = std::round(rMax/rStep);
-
-	if(debug_hough)
-	{
-		cout<<numangle<<endl;
-		cout<<numrho<<endl;
-	}
-
-	float* r_values = new float[numrho];
-	float* th_vaues = new float[numangle];
-	
-	int ri, thetai;
-	float r, theta;
-
-	for(r = rMin + rStep/2, ri=0;ri<numrho;ri++,r +=rStep)
-	{
-		r_values[ri] = r;
-
-	}
-
-	for(theta = thetaMin, thetai =0;thetai<numangle;thetai++,theta
-			+=thetaStep)
-	{
-		th_vaues[thetai] =theta;
-
-	}
-
-	if(debug_hough)
-	{
-		print_array(r_values, numrho);
-		print_array(th_vaues, numangle);
-	}
-	
-	//int count = countNonZero(src_host);
-	//cout<<count<<endl;	
-	
-	
-	houghTransform(edge_image, numangle, numrho,thetaStep, rStep);
-	
-}
-*/
