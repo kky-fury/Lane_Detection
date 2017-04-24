@@ -7,6 +7,7 @@
 #include"rgb2gray.hpp"
 #include"hough.hpp" 
 #include"line.hpp"
+#include"line_fitting.hpp"
 
 
 #endif

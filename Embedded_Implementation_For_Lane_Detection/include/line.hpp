@@ -39,7 +39,7 @@ class Line
 	public:
 		Linepoint startpoint;
 		Linepoint endpoint;
-		vector<tuple<int,int>> x_y_points;
+		vector<Linepoint> x_y_points;
 
 		Linepoint getstartpoint();
 		Linepoint getendpoint();
