@@ -44,7 +44,7 @@ void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 		else if(pt2.x > x_limit_max)
 			pt2.x = x_limit_max;
 		
-		cv::line(gray_ipm_image, pt1, pt2, (0,0,255),2);
+		cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
 		
 	}
 
