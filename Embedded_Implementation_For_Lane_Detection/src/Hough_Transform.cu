@@ -47,9 +47,9 @@ __global__ void getNonzeroEdgepoints(unsigned char const* const image, unsigned 
 {
 
 	
-	__shared__ unsigned int s_queues[4][32 * PIXELS_PER_THREAD];
-	__shared__ int s_qsize[4];
-	__shared__ int s_globStart[4];
+	__shared__ unsigned int s_queues[THREADS_Y_HOUGH][THREADS_X_HOUGH * PIXELS_PER_THREAD];
+	__shared__ int s_qsize[THREADS_Y_HOUGH];
+	__shared__ int s_globStart[THREADS_Y_HOUGH];
 
 	const int x = blockIdx.x * blockDim.x * PIXELS_PER_THREAD + threadIdx.x;
 	const int y = blockIdx.y * blockDim.y + threadIdx.y;
