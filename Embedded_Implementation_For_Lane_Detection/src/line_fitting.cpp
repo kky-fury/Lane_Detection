@@ -62,19 +62,19 @@ void fitline2D(vector<Linepoint>& x_y_points, float* line)
 	float* weights =  (float*)malloc(count*sizeof(float));
 	float* dist = (float*)malloc(count*sizeof(float));
 	
-	float rdelta = 0.01f;
-	float adelta = 0.01f;
+	float delta_1 = 0.01f;
+	float delta_2 = 0.01f;
 	
 	float min_sum_dist = DBL_MAX;
 
 	srand((int)time(0));
 	int i, j, k;
-	float _line[6], _lineprev[6];
+	float _line[4], _lineprev[4];
 	
 	double sum_dist = 0;
 
 
-	for(k = 0;k<20;k++)
+	for(k = 0;k<10;k++)
 	{
 		int first = 1;
 		for(i = 0;i<count;i++)
@@ -94,7 +94,7 @@ void fitline2D(vector<Linepoint>& x_y_points, float* line)
 		}
 
 		fitlinels(x_y_points, count, weights,_line);
-		for(i=0;i<30;i++)
+		for(i=0;i<15;i++)
 		{
 			double sum_w = 0;
 			if(first)
@@ -104,7 +104,7 @@ void fitline2D(vector<Linepoint>& x_y_points, float* line)
 				double t = _line[0]*_lineprev[0] + _line[1]*_lineprev[1];
 				t = std::max(t, -1.);
 				t = std::min(t, 1.);
-				if(fabs(acos(t)) < adelta)
+				if(fabs(acos(t)) < delta_2)
 				{
 					float x,y,d;
 
@@ -113,7 +113,7 @@ void fitline2D(vector<Linepoint>& x_y_points, float* line)
 
 					d = x>y?x:y;
 					
-					if(d<rdelta)
+					if(d<delta_1)
 						break;
 				}
 
