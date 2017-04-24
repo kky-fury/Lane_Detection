@@ -258,12 +258,12 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 	
 	thresh_to_zero<<<gridSize, blockSize>>>(d_image, threshold);
 	cudaDeviceSynchronize();
-	//CudaCheckError();
+	CudaCheckError();
 	
 	
 	clearImage<<<gridSize, blockSize>>>(d_image);
 	cudaDeviceSynchronize();
-	//CudaCheckError();
+	CudaCheckError();
 	
 	if(debug_pre_process)
 	{
@@ -287,19 +287,19 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 	float* d_roi_selectedImage;
 
 	cudaMalloc((void**)&d_roi_selectedImage,ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(float));
-	//CudaCheckError();
+	CudaCheckError();
 	
 	cudaMemset(d_roi_selectedImage,0, ROI_IMAGE_HEIGHT*ROI_IMAGE_WIDTH*sizeof(float));
-	//CudaCheckError();
+	CudaCheckError();
 
 	selectROI<<<gridSize,blockSize>>>(d_image, d_roi_selectedImage);
 	cudaDeviceSynchronize();
-	//CudaCheckError();
+	CudaCheckError();
 
 	if(debug_pre_process)
 	{	
 		cudaMemcpy(h_roi_selectedImage,d_roi_selectedImage,sizeof(float)*ROI_IMAGE_HEIGHT*ROI_IMAGE_WIDTH, cudaMemcpyDeviceToHost);
-		//CudaCheckError();
+		CudaCheckError();
 		Mat roi_image(ROI_IMAGE_HEIGHT, ROI_IMAGE_WIDTH, CV_32F);
 		for(int i =0;i<ROI_IMAGE_HEIGHT;i++)
 		{
@@ -320,16 +320,16 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 	float bin_thresh = (max)/2;
 	unsigned char* d_bin_image;
 	cudaMalloc((void**)&d_bin_image, ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char));
-	//CudaCheckError();
+	CudaCheckError();
 	
 	cudaMemset(d_bin_image, 0, ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char));
-	//CudaCheckError();
+	CudaCheckError();
 
 	dim3 gridSize_roi((ROI_IMAGE_WIDTH + blockSize.x -1)/blockSize.x, (ROI_IMAGE_HEIGHT + blockSize.y -1)/blockSize.y);
 
 	thresh_binary<<<gridSize_roi, blockSize>>>(d_roi_selectedImage, d_bin_image,bin_thresh, 1);
 	cudaDeviceSynchronize();
-	//CudaCheckError();
+	CudaCheckError();
 
 	if(debug_pre_process)
 	{
@@ -352,7 +352,7 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 	}
 	unsigned char* h_bin_image = (unsigned char*)malloc(ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char));
 	cudaMemcpy(h_bin_image, d_bin_image,ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char), cudaMemcpyDeviceToHost);
-	//CudaCheckError();
+	CudaCheckError();
 
 	/*
 	cudaEventRecord(stop);
@@ -498,7 +498,6 @@ unsigned char* filterImage(const float* const grayImage, int width_kernel_x, int
 		for(int j =0;j<ncol_kernel_x;j++)
 		{		
 				*(kernel + i*ncol_kernel_x + j) -= mean;
-				//cout<<*(kernel + i*ncol_kernel_x + j)<<"\t";
 		}	
 		//cout<<endl;
 	}
@@ -508,15 +507,15 @@ unsigned char* filterImage(const float* const grayImage, int width_kernel_x, int
 	float* h_filter_Image = (float*)malloc(NUMPIX*sizeof(float));	
 
 	cudaMalloc((void**)&d_kernel,nrow_kernel_y*ncol_kernel_x*sizeof(float));
-	//CudaCheckError();
+	CudaCheckError();
 
 	cudaMemcpy(d_kernel,kernel,nrow_kernel_y*ncol_kernel_x*sizeof(float),cudaMemcpyHostToDevice);
-	//CudaCheckError();
+	CudaCheckError();
 
 	const int filterWidth = CU_FILTER_WIDTH;
 
 	cudaMalloc((void**)&d_filter_Image, NUMPIX*sizeof(float));
-	//CudaCheckError();
+	CudaCheckError();
 
 	const dim3 blockSize(THREAD_X, THREAD_Y);	
 	const dim3 gridSize((IMAGE_WIDTH + blockSize.x -1)/blockSize.x, (IMAGE_HEIGHT + blockSize.y -1)/blockSize.y);
@@ -525,16 +524,8 @@ unsigned char* filterImage(const float* const grayImage, int width_kernel_x, int
 
 	gaussian_blur_tiled<<<gridSize,blockSize,smemSize>>>(grayImage,d_filter_Image, IMAGE_HEIGHT, IMAGE_WIDTH,d_kernel, filterWidth);
 	cudaDeviceSynchronize();
-	//CudaCheckError();
+	CudaCheckError();
 	
-	/*
-	thrust::device_ptr<float> dbeg(d_filter_Image);
-	thrust::device_ptr<float> dend = dbeg + NUMPIX;
-	
-	float min, max;
-	find_min_max(dbeg, dend, &min, &max);
-	*/
-
 	cudaMemcpy(h_filter_Image, d_filter_Image, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
 	unsigned char* bin_image = getQuantile(d_filter_Image, h_filter_Image,0.985);
 	
@@ -617,32 +608,3 @@ unsigned char* convert2fp(const unsigned char* const h_grayImage)
 
 
 
-
-
-
-
-
-/*
-int main(int argc, char* argv[])
-{
-
-	Mat src_host;
-	src_host = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_0.png", CV_LOAD_IMAGE_COLOR);
-	
-	//float* test;
-	//cudaMalloc((void**)&test, NUMPIX*sizeof(float));
-	//CudaCheckError();
-
-	unsigned char* h_rgb_img = src_host.data;
-	unsigned char* h_gray_img = (unsigned char*)malloc(NUMPIX*sizeof(unsigned char));
-	float* h_grayImage_32f = (float*)malloc(NUMPIX*sizeof(float));
-
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-
-	
-	convert2Gray(h_rgb_img, h_gray_img, h_grayImage_32f);
-	
-
-}
-*/
