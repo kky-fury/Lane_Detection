@@ -118,7 +118,9 @@ class BirdsEyeView
 		tuple_int bev_zRange_minMax;
 		matrix_t Tr33;
 		matrix_t uvMat;
+		//float* h_B;
 		float* h_B;
+		static float* s_h_B;
 		int numBRows;
 		int numBColumns;
 		void computeLookUpTable();	
@@ -133,6 +135,7 @@ class BirdsEyeView
 		void set_matrix33(matrix_t Tr33);
 		//void initialize(Mat& image);
 		void initialize();
+		static float* getWorld() {return s_h_B ;};
 		//void computeLookUpTable(Mat& image);
 		unsigned char* computeLookUpTable(unsigned char* image);
 };
