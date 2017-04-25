@@ -9,12 +9,6 @@ int main(int argc, char* argv[])
 	
 	unsigned char* h_rgb_img = input_image.data;
 	/*
-	auto begin_rgb_2_gray = std::chrono::high_resolution_clock::now();
-	unsigned char* h_grayImage =  rgb2gray(h_rgb_img);
-	auto end_rgb_2_gray = std::chrono::high_resolution_clock::now();
-
-	cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end_rgb_2_gray-begin_rgb_2_gray).count() << "ns" << std::endl;
-
 	Mat gray_image(IMAGE_HEIGHT_RGB, IMAGE_WIDTH_RGB, CV_8UC1);
 	unsigned char* img = gray_image.data;
 	*/
@@ -41,7 +35,7 @@ int main(int argc, char* argv[])
 
 	BirdsEyeView bev(bev_res, invalid_value,bev_xRange_minMax, bev_zRange_minMax);
 	/*Projection matrix for left color camera in rectified coordinates*/
-	matrix_t P2
+	matrix_t intrinsic_matrix
 	{
 		{7.215377000000e+02, 0.000000000000e+00, 6.095593000000e+02, 4.485728000000e+01},
 		{0.000000000000e+00 ,7.215377000000e+02 ,1.728540000000e+02 ,2.163791000000e-01},
@@ -49,7 +43,7 @@ int main(int argc, char* argv[])
 	};
 
 	/*Initialize Rotation Matrix (3x3) */
-	matrix_t R0_rect
+	matrix_t rotation_matrix
 	{
 		{9.999239000000e-01, 9.837760000000e-03, -7.445048000000e-03},
 		{-9.869795000000e-03, 9.999421000000e-01,-4.278459000000e-03},
@@ -64,7 +58,7 @@ int main(int argc, char* argv[])
 	
 	};
 
-	bev.setup(P2, R0_rect, Tr_cam_to_road);
+	bev.setup(intrinsic_matrix, rotation_matrix, Tr_cam_to_road);
 	bev.initialize();
 
 	//auto begin = std::chrono::high_resolution_clock::now();
