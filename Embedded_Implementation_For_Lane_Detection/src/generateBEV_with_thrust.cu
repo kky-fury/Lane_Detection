@@ -526,11 +526,13 @@ void BirdsEyeView::initialize()
 	cudaMalloc((void**)&d_B, sizeof(float)*this->numBRows*this->numBColumns);
 	cudaFree(d_B);
 
-
-
+	s_h_B = (float*)malloc(numBRows*numBColumns*sizeof(float));
+	s_h_B = this->h_B;
 
 }
 
+
+float* BirdsEyeView::s_h_B = NULL;
 
 
 
@@ -550,7 +552,7 @@ BirdsEyeView::BirdsEyeView(float bev_res, double invalid_value, tuple_int bev_xR
 unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 {
 
-	float* result = getMatrix(this->Tr33, this->h_B,this->numBRows, this->numBColumns);
+	float* result = getMatrix(this->Tr33, getWorld(),this->numBRows, this->numBColumns);
 	
 	if(debug_bev)
 	{
