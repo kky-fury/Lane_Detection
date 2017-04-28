@@ -30,6 +30,34 @@ struct checkSanity
 
 };
 */
+void printiarray(int* arr, int row, int column)
+{
+	for(int i =0;i<row;i++)
+	{
+		for(int j  =0;j<column;j++)
+		{
+			cout<<*(arr + i*column + j)<<"\t";
+		}
+		cout<<endl;
+	}
+
+
+}
+
+void printfarray(float* arr, int row, int column)
+{
+	for(int i = 0;i<row;i++)
+	{
+		for(int j = 0;j<column;j++)
+		{
+			cout<<*(arr + i*column + j)<<"\t";
+
+		}
+		cout<<endl;
+	}
+
+}
+
 void print1dvector(row_t vector)
 {   
 	for(const auto& elem: vector)
@@ -313,6 +341,71 @@ float* getMatrix(matrix_t Tr33, float* h_B, int numBRows, int numBColumns)
 	return h_C;
 
 
+}
+
+float* getMatrix_reverse(matrix_t Tr33_inverse, float* f_uvMat_reverse, int numBRows, int numBColumns)
+{
+
+	float* h_A;
+	float* h_C;
+	float* d_A;
+	float* d_B;
+	float* d_C;
+	
+	int numARows = Tr33_inverse.size();
+	int numAColumns = Tr33_inverse[0].size();
+
+	int numCRows = numARows;
+	int numCColumns = numBColumns;
+
+	h_A = (float*)malloc(numARows*numAColumns*sizeof(float));
+	
+	for(int i = 0;i<numARows;i++)
+	{
+		for(int j  =0;j<numAColumns;j++)
+		{
+			*(h_A + i*numAColumns + j) = Tr33_inverse[i][j];
+		}
+	}
+	
+	h_C = (float*)malloc(numCRows*numCColumns*sizeof(float));
+
+	cudaMalloc((void**)&d_A, numARows*numAColumns*sizeof(float));
+	cudaMalloc((void**)&d_B, numBRows*numBColumns*sizeof(float));
+	cudaMalloc((void**)&d_C, numCRows*numCColumns*sizeof(float));
+
+	cudaMemcpy(d_A, h_A, sizeof(float) * numARows * numAColumns, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_B, f_uvMat_reverse, sizeof(float) * numBRows * numBColumns, cudaMemcpyHostToDevice);
+
+	int dim_grid_x = (numCColumns - 1)/TILE_WIDTH +1;
+	int dim_grid_y = (numCRows -1)/TILE_WIDTH + 1;
+
+	dim3 dimGrid(dim_grid_x, dim_grid_y);
+	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+
+	matrix_mul<<<dimGrid, dimBlock>>>(d_A, d_B, d_C, numARows, numAColumns,numBRows, numBColumns, numCRows, numCColumns);
+	cudaDeviceSynchronize();
+	cudaMemcpy(h_C, d_C, sizeof(float) * numCRows * numCColumns,cudaMemcpyDeviceToHost);
+
+	
+	float* row_ptr_0 = h_C;
+	float* row_ptr_1 = h_C + numCColumns;
+	float* row_ptr_2 = h_C + 2*numCColumns;
+
+	for(int i =0;i<numCColumns;i++)
+	{
+		*(row_ptr_0 +  i)	=	*(row_ptr_0 + i)/(*(row_ptr_2 + i));
+		*(row_ptr_1 + i) 	=	*(row_ptr_1 + i)/(*(row_ptr_2 + i));
+		*(row_ptr_2 + i)	= 	*(row_ptr_2 + i)/(*(row_ptr_2 + i));
+
+	}
+
+
+	cudaFree(d_A);
+	cudaFree(d_B);
+	cudaFree(d_C);
+	
+	return h_C;
 
 }
 
@@ -376,9 +469,11 @@ void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_
 			(this->Tr)[i].erase((this->Tr)[i].begin() + columntoDelete);
 		}
 
-
 	}
 	this->Tr33 = this->Tr;
+	matrix_t Tr33_inverse = inverse(this->Tr33);
+	this->Tr33_inverse = Tr33_inverse;
+
 
 }
 
@@ -390,6 +485,11 @@ matrix_t Calibration::get_matrix33()
 
 }
 
+matrix_t Calibration::get_matrix33_inverse()
+{
+	return this->Tr33_inverse;
+
+}
 
 
 
@@ -402,12 +502,16 @@ void  BirdsEyeView::setup(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_road
 {
 	(this->calib)->setup_calib(P2, R0_rect, Tr_cam_to_road);
 	this->set_matrix33((this->calib)->get_matrix33());
-
+	this->set_matrix33_inverse((this->calib)->get_matrix33_inverse());
 }
 
 void BirdsEyeView::set_matrix33(matrix_t Tr33)
 {   
 	this->Tr33 = Tr33;
+}
+void BirdsEyeView::set_matrix33_inverse(matrix_t Tr33_inverse)
+{
+	this->Tr33_inverse = Tr33_inverse;
 }
 
 void BirdsEyeView::initialize()
@@ -529,6 +633,142 @@ void BirdsEyeView::initialize()
 	s_h_B = (float*)malloc(numBRows*numBColumns*sizeof(float));
 	s_h_B = this->h_B;
 
+	/*Required For Getting the Inverse of the Lane Detected Image*/
+	//matrix_t y_im(IMAGE_HEIGHT_GRAY, row_t(IMAGE_WIDTH_GRAY,0));
+	//matrix_t x_im(IMAGE_HEIGHT_GRAY, row_t(IMAGE_WIDTH_GRAY,0));
+	
+	int size_vec = IMAGE_HEIGHT_GRAY*IMAGE_WIDTH_GRAY;
+
+	float* y_im = (float*)malloc(size_vec*sizeof(float));
+	float* x_im = (float*)malloc(size_vec*sizeof(float));
+	float count = 1.0;
+	
+	for(int i = 0;i<IMAGE_HEIGHT_GRAY;i++)
+	{
+		for(int j = 0;j<IMAGE_WIDTH_GRAY;j++)
+		{
+			*(y_im + i*IMAGE_WIDTH_GRAY + j)= count;
+		
+		}
+		count++;
+	}
+
+	count = 1.;
+	for(int i = 0;i<IMAGE_HEIGHT_GRAY;i++)
+	{
+		for(int j = 0;j<IMAGE_WIDTH_GRAY;j++)
+		{
+			*(x_im + i*IMAGE_WIDTH_GRAY + j) = count++;
+		}
+		count = 1.;
+	}
+	
+	matrix_t uv_mat_reverse(3, row_t(size_vec,0));
+	row_t y_world_reverse(size_vec,1.0);
+
+	row_t::iterator uv_mat_reverse_0,uv_mat_reverse_1,uv_mat_reverse_2, y_world_it;
+	int mesh_i;
+	for(mesh_i = 0, uv_mat_reverse_0 = uv_mat_reverse[0].begin(),uv_mat_reverse_1= uv_mat_reverse[1].begin(), 
+			uv_mat_reverse_2 =uv_mat_reverse[2].begin(),y_world_it =
+			y_world_reverse.begin()
+			;mesh_i<size_vec;mesh_i++,uv_mat_reverse_0++,uv_mat_reverse_1++,uv_mat_reverse_2++,
+			y_world_it++)
+	{
+		*uv_mat_reverse_0 = *(x_im + mesh_i);
+		*uv_mat_reverse_1 = *(y_im + mesh_i);
+		*uv_mat_reverse_2 = *y_world_it;
+	}
+
+	if(debug_bev)
+	{
+		printfarray(y_im, IMAGE_HEIGHT_GRAY, IMAGE_WIDTH_GRAY);
+		printfarray(x_im, IMAGE_HEIGHT_GRAY, IMAGE_WIDTH_GRAY);
+		print2dvector(uv_mat_reverse);
+	}
+
+	this->uvMat_reverse = uv_mat_reverse;
+	int nrows_r = uv_mat_reverse.size();
+	int ncolumns_r = uv_mat_reverse[0].size();
+	
+	float* f_uvMat_reverse  = (float*)malloc(nrows_r*ncolumns_r*sizeof(float));
+	for(int i =0;i<nrows_r;i++)
+	{
+		for(int j = 0;j<ncolumns_r;j++)
+		{
+			*(f_uvMat_reverse + i*ncolumns_r + j) = uv_mat_reverse[i][j];
+		}
+	}
+
+	float* result = getMatrix_reverse(this->Tr33_inverse, f_uvMat_reverse, nrows_r, ncolumns_r);
+
+	float* x_val = (float*)malloc(size_vec*sizeof(float));
+	float* z_val = (float*)malloc(size_vec*sizeof(float));
+
+	float* result_row_0 = result;
+	float* result_row_1 = result + 1*size_vec;
+
+	for(int i  =0;i<IMAGE_HEIGHT_GRAY;i++)
+	{
+		for(int j  =0;j<IMAGE_WIDTH_GRAY;j++)
+		{
+			*(x_val +i*IMAGE_WIDTH_GRAY + j) = *(result_row_0 + i*IMAGE_WIDTH_GRAY + j);
+			*(z_val + i*IMAGE_WIDTH_GRAY + j) = *(result_row_1 + i*IMAGE_WIDTH_GRAY + j);
+		}
+	}
+
+	if(debug_bev)
+	{
+		printfarray(x_val, IMAGE_HEIGHT_GRAY, IMAGE_WIDTH_GRAY);
+		printfarray(z_val, IMAGE_HEIGHT_GRAY, IMAGE_WIDTH_GRAY);
+	}
+
+	int* x_index_val = (int*)malloc(size_vec*sizeof(int));
+	int* z_index_val = (int*)malloc(size_vec*sizeof(int));
+
+	for(int i = 0;i<IMAGE_HEIGHT_GRAY;i++)
+	{
+		for(int j =0;j<IMAGE_WIDTH_GRAY;j++)
+		{
+			*(x_index_val + i*IMAGE_WIDTH_GRAY + j) = static_cast<int>(std::round((*(x_val + i*IMAGE_WIDTH_GRAY + j) - (this->bevParams)->bev_xLimits.a)/(this->bevParams)->bev_res));
+			*(z_index_val + i*IMAGE_WIDTH_GRAY + j) = static_cast<int>(std::round((*(z_val + i*IMAGE_WIDTH_GRAY + j) - (this->bevParams)->bev_zLimits.a)/(this->bevParams)->bev_res));
+		}
+	}
+
+	vector<int> x_bev_index_sel(size_vec),z_bev_index_sel(size_vec),x_im_index_sel(size_vec),y_im_index_sel(size_vec);
+
+	int count_index = 0;
+	for(int i = 0;i<IMAGE_HEIGHT_GRAY;i++)
+	{
+		for(int j =0;j<IMAGE_WIDTH_GRAY;j++)
+		{
+			if((*(x_index_val + i*IMAGE_WIDTH_GRAY + j) >= 1) & (*(x_index_val + i*IMAGE_WIDTH_GRAY + j) <= (this->bevParams)->bev_size.b) & (*(z_index_val + i*IMAGE_WIDTH_GRAY +j) >=1) & (*(z_index_val + i*IMAGE_WIDTH_GRAY + j) <= (this->bevParams)->bev_size.a))
+			{
+				x_bev_index_sel[count_index]	= 	*(x_index_val + i*IMAGE_WIDTH_GRAY + j) - 1;
+				z_bev_index_sel[count_index]	= 	*(z_index_val + i*IMAGE_WIDTH_GRAY + j) - 1;
+				x_im_index_sel[count_index]		= 	(int)(*(x_im + i*IMAGE_WIDTH_GRAY + j)) -1;
+				y_im_index_sel[count_index++]	= 	(int)(*(y_im +i*IMAGE_WIDTH_GRAY + j)) -1;
+			}
+
+		}
+	
+	}
+
+	cout<<"Number of Points \t"<<count_index<<endl;
+	
+	if(debug_bev)
+	{
+		printiarray(x_index_val, IMAGE_HEIGHT_GRAY, IMAGE_WIDTH_GRAY);
+		printiarray(z_index_val, IMAGE_HEIGHT_GRAY, IMAGE_WIDTH_GRAY);
+	}
+	x_bev_index_sel.resize(count_index);
+	z_bev_index_sel.resize(count_index);
+	x_im_index_sel.resize(count_index);
+	y_im_index_sel.resize(count_index);
+
+	this->x_bev_index_sel = x_bev_index_sel;
+	this->z_bev_index_sel = z_bev_index_sel;
+	this->x_im_index_sel = x_im_index_sel;
+	this->y_im_index_sel = y_im_index_sel;
 }
 
 
@@ -598,8 +838,8 @@ unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 	x_vec_sel.resize(count);
 	xi_1.resize(count);
 	yi_1.resize(count);
-	
 
+	
 	if(debug_bev)
 	{
 		for(const auto& i: xi_1)
@@ -640,6 +880,32 @@ unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 	return o_im;
 }
 
+unsigned char* BirdsEyeView::getperspectiveView(unsigned char* image)
+{
+
+	vector<int>::const_iterator m,k,i,j;
+	
+	unsigned char* i_im = image;
+	unsigned char* o_im  = (unsigned char*)malloc(IMAGE_WIDTH_GRAY*IMAGE_HEIGHT_GRAY*sizeof(unsigned char));
+
+	for(i = (this->z_bev_index_sel).begin(), j =
+			(this->x_bev_index_sel).begin(), m = (this->x_im_index_sel.begin()),
+			k = (this->y_im_index_sel.begin());
+			i<(this->z_bev_index_sel).end();i++, j++, m++,k++)
+	{
+
+		int row_output_image = *k;
+		int column_output_image = *m;
+
+		int row = *i;
+		int column = *j;
+
+		*(o_im + row_output_image*IMAGE_WIDTH_GRAY + column_output_image) = *(i_im + row*200 + column);
+
+	}
+
+	return o_im;
+}
 
 
 
