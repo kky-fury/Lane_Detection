@@ -54,7 +54,8 @@ typedef struct coord{
 	int b;
 }tuple_int;
 
-
+void printiarray(int* arr, int row, int column);
+void printfarray(float* arr, int row, int column);
 void print1dvector(row_t vector);
 void print2dvector(matrix_t vector);
 
@@ -95,11 +96,13 @@ class Calibration
 		matrix_t R0_Rect;
 		matrix_t Tr_cam_to_road;
 		matrix_t Tr33;
+		matrix_t Tr33_inverse;
 		matrix_t Tr;
 		/*Constructor*/
 		Calibration();
 		void setup_calib(matrix_t P2, matrix_t R0_Rect, matrix_t Tr_cam_to_road);
 		matrix_t get_matrix33();
+		matrix_t get_matrix33_inverse();
 
 };
 
@@ -117,7 +120,9 @@ class BirdsEyeView
 		tuple_int bev_xRange_minMax;
 		tuple_int bev_zRange_minMax;
 		matrix_t Tr33;
+		matrix_t Tr33_inverse;
 		matrix_t uvMat;
+		matrix_t uvMat_reverse;
 		//float* h_B;
 		float* h_B;
 		static float* s_h_B;
@@ -128,16 +133,22 @@ class BirdsEyeView
 		float* yi_1;
 		vector<int> z_index_vec;
 		vector<int> x_index_vec;
+		vector<int> x_bev_index_sel;
+		vector<int> z_bev_index_sel;
+		vector<int> x_im_index_sel;
+		vector<int> y_im_index_sel;
 
 
 		BirdsEyeView(float bev_res,double invalid_value, tuple_int bev_xRange_minMax, tuple_int bev_zRange_minMax);
 		void setup(matrix_t P2, matrix_t R0_Rect, matrix_t Tr_cam_to_road);
 		void set_matrix33(matrix_t Tr33);
+		void set_matrix33_inverse(matrix_t Tr33_inverse);
 		//void initialize(Mat& image);
 		void initialize();
 		static float* getWorld() {return s_h_B ;};
 		//void computeLookUpTable(Mat& image);
 		unsigned char* computeLookUpTable(unsigned char* image);
+		unsigned char* getperspectiveView(unsigned char* image);
 };
 
 #endif
