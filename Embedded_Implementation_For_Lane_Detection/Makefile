@@ -46,8 +46,8 @@ lane_detect:$(OBJECTS)
 pre_process.o:./src/pre_processing.cu 
 	$(CC) -c -O3 -arch=sm_62 -std=c++11 ./src/pre_processing.cu $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o pre_process.o
 
-bev_thrust.o:./src/generateBEV_with_thrust.cu  
-	$(CC) -c -O3 -arch=sm_62 -std=c++11 ./src/generateBEV_with_thrust.cu $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o bev_thrust.o
+bev_thrust.o:./src/generate_BEV.cu 
+	$(CC) -c -O3 -arch=sm_62 -std=c++11 ./src/generate_BEV.cu $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o bev_thrust.o
  
 Lane_Detection_main.o:./src/Lane_Detection_main.cpp 
 	$(CC) -c -O3  -arch=sm_62 -std=c++11 ./src/Lane_Detection_main.cpp  $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o Lane_Detection_main.o
