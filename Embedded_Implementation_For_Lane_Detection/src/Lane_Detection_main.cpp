@@ -185,11 +185,31 @@ int main(int argc, char* argv[])
 
 
 	fit_line(line_objects, gray_IPM_image);
+	unsigned char* line_detected_image = gray_IPM_image.data;
+	unsigned char* perspective_image = bev.getperspectiveView(line_detected_image);
+
+	Mat gray_IPM_image_detected(IMAGE_HEIGHT_RGB, IMAGE_WIDTH_RGB, CV_8UC1);
+	unsigned char* p_im_pointer = gray_IPM_image_detected.data;
+
+	for(int i =0;i<IMAGE_HEIGHT_RGB;i++)
+	{
+		for(int j =0;j<IMAGE_WIDTH_RGB;j++)
+		{
+		
+			*(p_im_pointer + i*IMAGE_WIDTH_RGB + j) = *(perspective_image + i*IMAGE_WIDTH_RGB + j);
+
+		}
+	}
+
+
+	imshow("Result", gray_IPM_image_detected);
+	waitKey(0);
+	
 	//auto end = std::chrono::high_resolution_clock::now();
 	//cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
 
-	imshow("Result", gray_IPM_image);
-	waitKey(0);
+//	imshow("Result", gray_IPM_image);
+//	waitKey(0);
 	
 
 
