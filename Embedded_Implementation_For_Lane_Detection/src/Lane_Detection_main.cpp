@@ -4,16 +4,17 @@
 int main(int argc, char* argv[])
 {
 
-	Mat input_image =  imread("/home/nvidia/Lane_Detection/Original_Images/img_0.png");
+	//Mat input_image =  imread("/home/nvidia/Lane_Detection/Original_Images/img_2.png");
+	Mat input_image = imread("/home/nvidia/image_2/um_000000.png");
 
-	
 	unsigned char* h_rgb_img = input_image.data;
+
 	/*
 	Mat gray_image(IMAGE_HEIGHT_RGB, IMAGE_WIDTH_RGB, CV_8UC1);
 	unsigned char* img = gray_image.data;
 	*/
-	
 	/*
+	
 	for(int i =0;i<IMAGE_HEIGHT_RGB;i++)
 	{
 		for(int j = 0;j<IMAGE_WIDTH_RGB;j++)
@@ -35,13 +36,13 @@ int main(int argc, char* argv[])
 
 	BirdsEyeView bev(bev_res, invalid_value,bev_xRange_minMax, bev_zRange_minMax);
 	/*Projection matrix for left color camera in rectified coordinates*/
+	//For Image_0
 	matrix_t intrinsic_matrix
 	{
 		{7.215377000000e+02, 0.000000000000e+00, 6.095593000000e+02, 4.485728000000e+01},
 		{0.000000000000e+00 ,7.215377000000e+02 ,1.728540000000e+02 ,2.163791000000e-01},
 		{0.000000000000e+00, 0.000000000000e+00, 1.000000000000e+00, 2.745884000000e-03}
 	};
-
 	/*Initialize Rotation Matrix (3x3) */
 	matrix_t rotation_matrix
 	{
@@ -57,12 +58,42 @@ int main(int argc, char* argv[])
 		{7.516122576373e-03, 1.328318612284e-02, 9.998834806284e-01,2.752775890648e-01}
 	
 	};
-
+	/*For Image_1*/
+	/*
+	matrix_t Tr_cam_to_road
+	{
+		{9.998780444958e-01, -1.379252251645e-02, -7.329673303654e-03, 2.259126679386e-02},
+		{1.371927193990e-02, 9.998563329041e-01, -9.951851093180e-03, -1.576782598490e+00},
+		{7.465881263639e-03, 9.850077017074e-03, 9.999235703691e-01,2.807170564751e-01}
+	
+	};
+	*/
+	
+	/*For Image_2*/
+	/*
+	matrix_t Tr_cam_to_road
+	{
+		{9.998783653356e-01,-1.376905762475e-02,-7.330023107842e-03,2.258724696694e-02},
+		{1.370891707988e-02,9.998724359945e-01,-8.192773298801e-03,-1.578818275890e+00},
+		{7.441894688477e-03,8.091287506981e-03, 9.999395278003e-01,2.835072170308e-01},
+	};
+	*/
+	
+	/*For Image_13*/
+	/*
+	matrix_t Tr_cam_to_road
+	{
+		{9.993974242913e-01, -3.399222060168e-02, -7.027004866705e-03, 5.404177016000e-02},
+		{3.393449925061e-02, 9.993905818164e-01, -8.176738594524e-03,-1.562421412154e+00},
+		{7.300667829702e-03, 7.933351013649e-03, 9.999418343980e-01, 2.836494496477e-01}
+	};
+	*/
 	bev.setup(intrinsic_matrix, rotation_matrix, Tr_cam_to_road);
 	bev.initialize();
 
 	//auto begin = std::chrono::high_resolution_clock::now();
 	unsigned char* h_grayImage =  rgb2gray(h_rgb_img);
+
 
 	Mat gray_image(IMAGE_HEIGHT_RGB, IMAGE_WIDTH_RGB, CV_8UC1);
 	unsigned char* img = gray_image.data;
@@ -83,6 +114,7 @@ int main(int argc, char* argv[])
 	//imshow("Result", gray_IPM_image);
 	//waitKey(0);
 
+	
 	unsigned char* bin_image = convert2fp(ipm_image);
 
 	/*
@@ -144,7 +176,7 @@ int main(int argc, char* argv[])
 	*/
 
 	vector<Line> line_objects(line_count);
-	getLineObjects(line_objects, values->hough_lines, IMAGE_WIDTH, IMAGE_HEIGHT);
+	getLineObjects(line_objects, values->hough_lines,values->votes,IMAGE_WIDTH, IMAGE_HEIGHT);
 	
 	/*
 	Linepoint startpoint, endpoint;
@@ -185,6 +217,7 @@ int main(int argc, char* argv[])
 
 
 	fit_line(line_objects, gray_IPM_image);
+	/*	
 	unsigned char* line_detected_image = gray_IPM_image.data;
 	unsigned char* perspective_image = bev.getperspectiveView(line_detected_image);
 
@@ -204,12 +237,11 @@ int main(int argc, char* argv[])
 
 	imshow("Result", gray_IPM_image_detected);
 	waitKey(0);
-	
 	//auto end = std::chrono::high_resolution_clock::now();
 	//cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
-
-//	imshow("Result", gray_IPM_image);
-//	waitKey(0);
+	*/
+	imshow("Result", gray_IPM_image);
+	waitKey(0);
 	
 
 

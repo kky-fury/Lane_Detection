@@ -58,10 +58,10 @@ __global__ void getNonzeroEdgepoints(unsigned char const* const image, unsigned 
 		s_qsize[threadIdx.y] = 0;
 	__syncthreads();
 
-	if(y < 224)
+	if(y < IMG_HEIGHT)
 	{	
 		const unsigned char* srcRow = image + y*IMG_WIDTH;
-		for(int i = 0,xx = x; i<PIXELS_PER_THREAD && xx < 192;++i,xx +=
+		for(int i = 0,xx = x; i<PIXELS_PER_THREAD && xx < IMG_WIDTH;++i,xx +=
 				blockDim.x)
 		{
 			if(srcRow[xx])
@@ -83,11 +83,11 @@ __global__ void getNonzeroEdgepoints(unsigned char const* const image, unsigned 
 	{	
 		int totalSize = 0;
 		for(int i =0;i<blockDim.y;++i)
-			{
+		{
 				s_globStart[i] = totalSize;
 				totalSize += s_qsize[i];	
 
-			}
+		}
 		
 		const int global_Offset = atomicAdd(&g_counter, totalSize);
 		for(int i  =0 ;i<blockDim.y;++i)
@@ -106,8 +106,7 @@ __global__ void getNonzeroEdgepoints(unsigned char const* const image, unsigned 
 
 }
 
-__global__ void fillHoughSpace(unsigned int* const list, const int count, int*
-		hough_space,const float irho, const float theta, const int numrho)
+__global__ void fillHoughSpace(unsigned int* const list, const int count, int* hough_space,const float irho, const float theta, const int numrho)
 {
 
 	int* smem = (int*)shmem;
@@ -159,6 +158,7 @@ __global__ void fillHoughSpace(unsigned int* const list, const int count, int*
 }
 
 
+/*Non Maximum Suppression to get Valid Values*/
 __global__ void getLines(const int * hough_space, float2* lines, int* votes, const int
 		maxLines, const float rho, const float theta, const int threshold, const
 		int numrho, const int rhspace)
@@ -229,7 +229,7 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		}
 	*/
 		/*Replace by maximum function using cuda*/
-		const int threshold = 35;
+		const int threshold = 15;
 
 		unsigned char* gimage;	
 		unsigned int* glist; 
@@ -255,7 +255,12 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		CudaCheckError();
 		
 		dim3 dimBlock1(THREADS_X_HOUGH, THREADS_Y_HOUGH);
-		dim3 dimGrid1(1, 56);
+	
+		//dim3 dimGrid1(1, 56);
+		dim3 dimGrid1((IMG_WIDTH + THREADS_X_HOUGH*PIXELS_PER_THREAD
+					-1)/(THREADS_X_HOUGH*PIXELS_PER_THREAD), (IMG_HEIGHT +
+						THREADS_Y_HOUGH -1)/(THREADS_Y_HOUGH));
+		
 		getNonzeroEdgepoints<<<dimGrid1,dimBlock1>>>(gimage, glist);
 		CudaCheckError();
 		cudaDeviceSynchronize();
@@ -412,7 +417,7 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 				line(gray_image, pt1,pt2, (255,0,0),1);
 				
 			}
-			imshow("IMage", gray_image);
+			imshow("Image", gray_image);
 			waitKey(0);
 
 		}
@@ -424,7 +429,7 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		values->hough_lines->countlines = countlines;
 		values->clist = clist;
 		values->count = totalCount;
-
+		values->votes = votes;
 		/*
 		lin_votes* hough_lines = (lin_votes*)malloc(sizeof(lin_votes));
 		hough_lines->lines = lines;

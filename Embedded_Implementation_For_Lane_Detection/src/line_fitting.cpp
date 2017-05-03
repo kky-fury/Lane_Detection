@@ -1,7 +1,6 @@
 #include"line_fitting.hpp"
 
 
-
 void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 {
 	int count_line_objects =  line_objects.size();
@@ -35,16 +34,22 @@ void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 		int x_limit_min = std::min(line_objects[i].startpoint.x, line_objects[i].endpoint.x);
 		
 		if(pt1.x < x_limit_min)
-			pt1.x = x_limit_min;
+			pt1.x = x_limit_min - 1;
 		else if(pt1.x > x_limit_max)
-			pt1.x = x_limit_max;
+			pt1.x = x_limit_max - 1;
 
 		if(pt2.x < x_limit_min)
-			pt2.x = x_limit_min;
+			pt2.x = x_limit_min - 3;
 		else if(pt2.x > x_limit_max)
-			pt2.x = x_limit_max;
+			pt2.x = x_limit_max - 3;
 		
-		cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
+		//cout<<"Line Coordinates \t"<<"Point 1 \t"<<"("<<pt1.x<<","<<pt1.y<<")"<<endl;
+		//cout<<"Line Coordinates \t"<<"Point 2 \t"<<"("<<pt2.x<<","<<pt2.y<<")"<<endl;	
+	
+		/*final check*/
+		int dist_between_points = fabs(pt1.x - pt2.x);
+		if(dist_between_points <  7)
+			cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
 		
 	}
 
@@ -212,6 +217,10 @@ void fitlinels(vector<Linepoint>& x_y_points, int count, float* weights, float* 
 	dx2 = x2 -x*x;
 	dy2 = y2 - y*y;
 	dxy = xy -x*y;
+	
+	//cout<<"Value of dxy"<<dxy<<"\t";
+	//cout<<"Value of dx2"<<dx2<<"\t";
+	//cout<<"Value of dy2"<<dy2<<endl;
 
 	t = (float)atan2(2*dxy, dx2-dy2)/2;
 	line[0] = (float)cos(t);

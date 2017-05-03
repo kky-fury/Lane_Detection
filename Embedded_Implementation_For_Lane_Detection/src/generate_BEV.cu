@@ -792,7 +792,7 @@ BirdsEyeView::BirdsEyeView(float bev_res, double invalid_value, tuple_int bev_xR
 unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 {
 
-	float* result = getMatrix(this->Tr33, getWorld(),this->numBRows, this->numBColumns);
+	float* result = getMatrix(this->Tr33, this->h_B,this->numBRows, this->numBColumns);
 	
 	if(debug_bev)
 	{

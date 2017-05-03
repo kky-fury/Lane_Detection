@@ -268,7 +268,7 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 	if(debug_pre_process)
 	{
 		cudaMemcpy(h_thresholded_image, d_image, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
-		//CudaCheckError();
+		CudaCheckError();
 		Mat output_image(IMAGE_HEIGHT, IMAGE_WIDTH, CV_32F);
 		for(int i =0;i<IMAGE_HEIGHT;i++)
 		{
@@ -362,7 +362,7 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 	cout<<"Time \t"<<milliseconds<<endl;
 	*/
 
-	if(debug_pre_process)
+	if(1)
 	{
 		cout<<(int)*(h_bin_image)<<endl;
 		Mat bin_image(ROI_IMAGE_HEIGHT, ROI_IMAGE_WIDTH, CV_8UC1);
@@ -375,6 +375,8 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 		}
 		imshow("Result", bin_image);
 		waitKey(0);
+	
+	
 	}
 
 	return h_bin_image;
@@ -559,7 +561,7 @@ unsigned char* convert2fp(const unsigned char* const h_grayImage)
 
 	cudaMalloc((void**)&d_grayImage, NUMPIX*sizeof(unsigned char));
 	CudaCheckError();
-	
+
 	cudaMalloc((void**)&d_grayImage_32f, NUMPIX*sizeof(float));
 	CudaCheckError();
 
@@ -574,7 +576,7 @@ unsigned char* convert2fp(const unsigned char* const h_grayImage)
 	
 	uchar2fp<<<gridSize,blockSize>>>(d_grayImage, d_grayImage_32f);
 
-	unsigned char* bin_image = filterImage(d_grayImage_32f, 2, 2 ,2,10);
+	unsigned char* bin_image = filterImage(d_grayImage_32f, 2, 2 ,1.95,10);
 
 	
 	
