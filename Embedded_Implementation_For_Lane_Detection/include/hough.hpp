@@ -36,6 +36,7 @@ typedef struct lines_w_non_zero_t
 {
 	lin_votes* hough_lines;
 	unsigned int* clist;
+	int* votes;
 	int count;
 }lines_w_non_zero;
 

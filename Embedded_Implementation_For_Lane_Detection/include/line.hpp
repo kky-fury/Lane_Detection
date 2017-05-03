@@ -40,14 +40,25 @@ class Line
 		Linepoint startpoint;
 		Linepoint endpoint;
 		vector<Linepoint> x_y_points;
-
+		int votes;
 		Linepoint getstartpoint();
 		Linepoint getendpoint();
 		void setPoints(line_coord* coordinates);
 };
 
+class Spline
+{
+	public:
+		int degree;
+		Linepoint points_spline[4];
+
+		Linepoint getPoint();
+
+};
+
+
 void checklanewidth(vector<Line>& line_objects, int line_count);
-void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines, int image_width, int image_height);
+void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines,int* votes, int image_width, int image_height);
 line_coord* getLineEndPoints(float rho, float theta_line, int image_width, int image_height);
 bool isPointInside(Linepoint point, int image_width, int image_height);
 void initializePoints(vector<Line>& line_objects, unsigned int* clist, int count);
