@@ -33,6 +33,12 @@ typedef struct line_coord_t
 
 }line_coord;
 
+typedef struct coor_vote_t
+{
+	int coordinate;
+	int votes;
+}coor_vote;
+
 class Line
 {
 
