@@ -344,7 +344,7 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		}
 	
 
-		int maxLines = 10;
+		int maxLines = 50;
 			
 		float2* d_lines;
 		int* d_votes;

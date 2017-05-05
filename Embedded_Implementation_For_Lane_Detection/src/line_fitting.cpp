@@ -47,9 +47,8 @@ void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 		//cout<<"Line Coordinates \t"<<"Point 2 \t"<<"("<<pt2.x<<","<<pt2.y<<")"<<endl;	
 	
 		/*final check*/
-		int dist_between_points = fabs(pt1.x - pt2.x);
-		if(dist_between_points <  7)
-			cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
+	//	int dist_between_points = fabs(pt1.x - pt2.x);
+		cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
 		
 	}
 

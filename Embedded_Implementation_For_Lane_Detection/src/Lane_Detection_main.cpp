@@ -5,7 +5,7 @@ int main(int argc, char* argv[])
 {
 
 	//Mat input_image =  imread("/home/nvidia/Lane_Detection/Original_Images/img_2.png");
-	Mat input_image = imread("/home/nvidia/image_2/um_000000.png");
+	Mat input_image = imread("/home/nvidia/image_2/um_000002.png");
 
 	unsigned char* h_rgb_img = input_image.data;
 
