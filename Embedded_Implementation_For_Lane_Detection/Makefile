@@ -20,7 +20,7 @@ BIN_5=bev_thrust
 
 #OBJECTS = $(BIN_1) $(BIN_2) $(BIN_3) $(BIN_4) $(BIN_5) $(BIN_6)
 
-OBJECTS=Lane_Detection_main.o pre_process.o bev_thrust.o rgb2gray.o hough_transform.o line.o line_fitting.o
+OBJECTS=Lane_Detection_main.o pre_process.o bev_thrust.o rgb2gray.o hough_transform.o line.o spline.o line_fitting.o
 
 #threshold_2:Hough_Transform.cu
 #	$(CC) -std=c++11 -arch=sm_62 Hough_Transform.cu -o $(BIN_2) $(Include) $(CFLAGS) $(LDFLAGS) $(I_PATH) $(L_PATH) -lopencv_gpu
@@ -60,6 +60,8 @@ hough_transform.o:./src/Hough_Transform.cu
 
 line.o:./src/Line.cpp
 	$(C) -c -O3 -std=c++11 ./src/Line.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o line.o 
+spline.o:./src/spline_fitting.cpp 
+	$(C) -c -O3 -std=c++11 ./src/spline_fitting.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o spline.o
 line_fitting.o:./src/line_fitting.cpp
 	$(C) -c -O3 -std=c++11 ./src/line_fitting.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o line_fitting.o 
 
