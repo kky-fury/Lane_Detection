@@ -1,7 +1,10 @@
 #include"line.hpp"
 #include"spline.hpp"
+#include"line_fitting.hpp"
 
 bool debug_spline = false;
+
+
 
 void  matrix_multiplication_spline(float* arr1, int arr1_rows, int arr1_cols, float* arr2, int arr2_rows, int arr2_cols, float* r_arr)
 {   
@@ -31,15 +34,14 @@ void getRansacSplines(vector<Line>& line_objects, vector<Spline>& spline_objects
 {
 	for(int i  = 0;i<line_objects.size();i++)
 	{
-		
 		Spline spline = getLine2Spline(line_objects[i], DEGREE);
-		spline_objects[i] = spline;		
-		
-		
+		spline_objects[i] = spline;					
 	}
 
-	//fitSpline(spline_objects);
-	drawSpline(gray_ipm_image, spline_objects);
+
+
+	fitSpline(spline_objects);
+	//drawSpline(gray_ipm_image, spline_objects);
 
 }
 
@@ -48,17 +50,36 @@ void drawSpline(Mat& gray_ipm_image, vector<Spline>& spline_objects)
 {
 	for(int i =0;i<spline_objects.size();i++)
 	{
-			getSplinePoints(spline_objects[i],.05);			
+			vector<Linepoint> rpoints = getSplinePoints(spline_objects[i],.05);			
+			for(int i =0;i<rpoints.size() - 1;i++)
+			{	
+				Point pt1, pt2;
+				pt1.x = rpoints[i].x;
+				pt1.y = rpoints[i].y;
+				pt2.x = rpoints[i+1].x;
+				pt2.y = rpoints[i+1].y;
+
+				cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
+
+
+			}
 
 	}
+
+	imshow("Result", gray_ipm_image);
+	waitKey(0);
 
 
 }
 
-void getSplinePoints(Spline& spline, float resolution)
+vector<Linepoint> getSplinePoints(Spline& spline, float resolution)
 {
+
 	float* tangents = (float*)malloc(2*2*sizeof(float));
 	float* points = evaluateSpline(spline, resolution, tangents);	
+
+	int n = (int)(1./resolution) + 1;
+	
 
 	if(debug_spline)
 	{
@@ -73,15 +94,105 @@ void getSplinePoints(Spline& spline, float resolution)
 	}
 	if(debug_spline)
 	{
-		for(int i =0;i<20;i++)
+		for(int i =0;i<n;i++)
 		{
 			for(int j =0;j<2;j++)
 			{
-				cout<<*(points + i*20 +j)<<"\t";
+				cout<<*(points + i*2 +j)<<"\t";
 			}
 			cout<<endl;
 		}
 	}
+	
+	vector<int> inpoints;
+	vector<int>::iterator it;	
+	int lastin = -1;
+	int nummin = 0;
+	
+	for(int i =0 ;i<n;i++)
+	{
+		*(points + i*2) = round(*(points + i*2));
+		*(points + i*2 + 1) = round(*(points + i*2 +1));
+
+		if(*(points + i*2) >= 0 && *(points + i*2) >= (spline.x_limit_min - 1) && *(points + i*2) <= (spline.x_limit_max + 1) && *(points + i*2 + 1) >= 0 && *(points + i*2 + 1) < 400)
+		{
+			if(lastin < 0 || (lastin >=0 && !(*(points + lastin*2 + 1) == *(points + i*2 + 1) && *(points + lastin*2) == *(points +i*2))))
+			{
+				inpoints.push_back(i);
+				lastin = i;
+				nummin++;
+			}
+
+		}
+	
+	}
+
+	if(debug_spline)
+	{
+		for(int i =0;i<n;i++)
+		{
+			for(int j =0;j<2;j++)
+			{
+				cout<<*(points + i*2 +j)<<"\t";
+			}
+			cout<<endl;
+		}
+	}
+
+	int p0 = inpoints.front();
+	
+	cout<<p0<<endl;
+	Line line_obj;
+	Point pt1, pt2;
+	pt1.x = *(points + p0*2) -10*(*(tangents));
+	pt1.y = *(points + p0*2 + 1) - 10*(*(tangents + 1));
+
+	pt2.x = *(points + p0*2);
+	pt2.y = *(points + p0*2 + 1);
+	
+	//boundline(200, 400, pt1, pt2);
+	
+	line_obj.startpoint.x = pt1.x;
+	line_obj.startpoint.y = pt1.y;
+	line_obj.endpoint.x = pt2.x;
+	line_obj.endpoint.y = pt2.y;
+
+
+	//cout<<"Coordinates \t"<<line_obj.startpoint.x<<"\t"<<line_obj.startpoint.y<<endl;
+	//cout<<"Coordinates \t"<<line_obj.endpoint.x<<"\t"<<line_obj.endpoint.y<<endl;
+
+	getLineIntersection(line_obj, spline.x_limit_max +1 , 400);
+	
+
+
+	cout<<"Coordinates \t"<<line_obj.startpoint.x<<"\t"<<line_obj.startpoint.y<<endl;
+	cout<<"Coordinates \t"<<line_obj.endpoint.x<<"\t"<<line_obj.endpoint.y<<endl;
+
+
+	//int* rpoints = (int*)malloc(sizeof(int)*nummin*2);
+	vector<Linepoint> rpoints(nummin);
+	int ri = 0;
+	for(it = inpoints.begin(); it != inpoints.end();ri++,it++)
+	{
+		//*(rpoints + ri*2) = (int) *(points + *(it)*2);
+		//*(rpoints + ri*2 + 1) = (int) *(points + *(it)*2 + 1);
+		rpoints[ri].x =(int) *(points + *(it)*2);
+		rpoints[ri].y =(int) *(points + *(it)*2 + 1);
+
+	}
+
+	if(debug_spline)
+	{
+		vector<Linepoint>::iterator iter;
+		for(iter = rpoints.begin();iter!= rpoints.end();iter++)
+		{
+			cout<<iter->x<<"\t"<<iter->y<<endl;
+		}
+	
+	}
+
+	return rpoints;
+
 
 }
 
@@ -92,7 +203,7 @@ float* evaluateSpline(Spline& spline, float resolution, float* tangents)
 	float* points = (float*)malloc(n*2*sizeof(float));
 
 	float M3 [] = {-1,3,3,1,3,-6,3,0,-3,3,0,0,1,0,0,0};
-	
+
 	float* spline_points = (float*)malloc((spline.degree + 1)*2*sizeof(float));
 	float P[2], dP[2], ddP[2], dddP[2];
 	float h2 = resolution*resolution;
@@ -195,18 +306,16 @@ float* evaluateSpline(Spline& spline, float resolution, float* tangents)
 	
 	}
 		
-
 	return points;
 
 }
 
-/*
 void fitSpline(vector<Spline>& spline_objects)
 {
 	int count_spline_objects = spline_objects.size();
 	for(int i  = 0;i<count_spline_objects;i++)
 	{
-		fitbezierSpline(spline_objects[i].spline_x_y_points);
+		fitbezierSpline(spline_objects[i],spline_objects[i].spline_x_y_points, DEGREE);
 
 	}
 	
@@ -215,7 +324,6 @@ void fitSpline(vector<Spline>& spline_objects)
 
 
 }
-*/
 
 Spline getLine2Spline(Line& line_object, int degree)
 {
@@ -250,6 +358,9 @@ Spline getLine2Spline(Line& line_object, int degree)
 		}	
 	}
 
+	spline.x_limit_max = max(line_object.startpoint.x, line_object.endpoint.x);
+	spline.x_limit_min = min(line_object.startpoint.x, line_object.endpoint.x);
+
 	return spline;
 
 
@@ -263,19 +374,255 @@ Linepoint getDirection(const Linepoint& v1, const Linepoint& v2)
 
 }
 
-/*
-void fitbezierSpline(vector<Linepoint>& spline_x_y_points, int degree)
+void fitbezierSpline(Spline& prevSpline, vector<Linepoint>& spline_x_y_points, int degree)
 {
+	int numSamples =  4;
+	int numIterations = 10;
+	int numGoodFit = 4;
+
+	int count = spline_x_y_points.size();
+	cout<<"Number of Points \t"<<count<<endl;
+	float* weights = (float*)malloc(count*sizeof(float));
 	
+	for(int i = 0;i<count;i++)
+	{
+		*(weights + i) = 1.f;
+
+	}
+	
+	getCumSum(weights, weights, count);
+
+	int* randIndex =  (int*)malloc(sizeof(int)*numSamples);
+	int* samplePoints = (int*)malloc(sizeof(int)*numSamples*2);
+	int* pointIndex = (int*)malloc(sizeof(int)*count);
+
+	Spline curSpline, bestSpline;
+	bestSpline.degree = 0;
+	float bestScore = 0;
+
+	//vector<Spline>::iterator prevSpline;
+	
+	for(int i = 0;i<numIterations;i++)
+	{
+
+		for(int i = 0; i<count;i++)
+		{
+			*(pointIndex + i) =0;
+		}
+		calculatenew_weights(weights, numSamples, randIndex, count);
+
+
+
+	}
+
+	
+
+	if(debug_spline)
+	{
+		for(int i = 0;i<count;i++)
+		{
+			cout<<"\t"<<*(weights + i);
+		}
+		cout<<endl;
+		
+		for(int i  =0;i<spline_x_y_points.size();i++)
+		{	
+			cout<<"Coordintes \t"<<spline_x_y_points[i].x<<"\t"<<spline_x_y_points[i].y<<endl;
+
+		}
+		
+
+
+
+
+	}
+
+
 
 
 
 
 
 }
-*/
+
+void getLineIntersection(Line& line_obj, int width, int height)
+{
+
+	bool startInside, endInside;
+	startInside = isPointInside(line_obj.startpoint, width, height);
+	endInside = isPointInside(line_obj.endpoint, width, height);
+		
+	
+
+	if(!(startInside && endInside))
+	{
+		float deltax, deltay;
+		deltax = line_obj.endpoint.x - line_obj.startpoint.x;
+		deltay =  line_obj.endpoint.y - line_obj.startpoint.y;
+	
+		float t[4] = {2,2,2,2};
+		float xup, xdown, yleft, yright;
+
+		if(deltay == 0)
+		{
+			xup = xdown = width + 2;
+		}
+		else
+		{
+			t[0] =  -line_obj.startpoint.y/deltay;
+			xup = line_obj.startpoint.x + t[0]*deltax;
+			t[1] = (height - line_obj.startpoint.y)/deltay;
+			xdown = line_obj.endpoint.x + t[1]*deltax;
+		}
+
+
+		if(deltax == 0)
+		{
+			yleft = yright = height + 2;
+			
+		}
+		else
+		{
+			t[2] = -line_obj.startpoint.x/deltax;
+			yleft = line_obj.startpoint.y + t[2]*deltay;
+			t[3] = (width - line_obj.startpoint.x)/deltax;
+			yright = line_obj.startpoint.y + t[3]*deltay;
+		}
+
+		Linepoint points[4];
+		points[0] = {(int)xup, 0};
+		points[1] = {(int)xdown, (int)height};
+		points[2] = {0, (int) yleft};
+		points[3] = {(int) width, (int) yright};
+		
+		if(debug_spline)
+		{
+			for(int i =0;i<4;i++)
+			{	
+				cout<<"Value of t array \t"<<t[i]<<endl;
+				cout<<"Coordinates \t"<<points[i].x<<"\t"<<points[i].y<<endl;
+			}
+		}
+		int i;
+		if(!startInside)
+		{
+			bool cont = true;
+			for(i = 0;i<4 && cont;i++)
+			{
+				if(t[i] >=0 && t[i] <= 1 && isPointInside(points[i], width, height) && !(points[i].x == line_obj.endpoint.x && points[i].y == line_obj.endpoint.y))
+				{
+					line_obj.startpoint.x = points[i].x;
+					line_obj.startpoint.y = points[i].y;
+					t[i] = 2;
+					cont = false;
+				}
+			
+			}
+
+			if(cont)
+			{
+				for(i = 0;i<4 && cont;i++)
+				{
+					if(t[i] >=0 && t[i] <= 1 && isPointInside(points[i], width, height))
+					{
+						line_obj.startpoint.x = points[i].x;
+						line_obj.startpoint.y = points[i].y;
+						t[i] = 2;
+						cont = false;
+
+					}
+
+				}
+
+
+			}
+		
+
+		}
+		if(!endInside)
+		{
+			bool cont = true;
+			for(i  = 0;i<4 && cont;i++)
+			{
+				if(t[i] >= 0 && t[i] <= 1 && isPointInside(points[i], width, height) && !(points[i].x == line_obj.startpoint.x && points[i].y == line_obj.startpoint.y))
+				{
+					line_obj.endpoint.x = points[i].x;
+					line_obj.endpoint.y = points[i].y;
+					t[i] = 2;
+					cont = false;
+
+				}
+
+			}
+
+			if(cont)
+			{
+				for(i = 0;i<4 && cont;i++)
+				{
+					if(t[i] >= 0 && t[i] <= 1 && isPointInside(points[i], width, height))
+					{
+						line_obj.endpoint.x = points[i].x;
+						line_obj.endpoint.y = points[i].y;
+						t[i] = 2;
+						cont = false;
+
+					}
+
+				}
+
+			}
+		}
+
+
+	
+	}
+
+
+	
+}
+
+void getCumSum(float* in_arr, float* out_arr, int count)
+{
+	for(int i =1 ; i<count;i++)
+	{
+		*(out_arr + i) += *(out_arr + i-1);
+
+	}
+
+}
+
+void calculatenew_weights(float* weights, int numSamples, int* randIndex, int count)
+{
+	int i =0, j;
+	srand((int)time(0));
+	
+	if(numSamples >= count)
+	{
+		for(;i<numSamples;i++)
+		{
+			*(randIndex +i) = i;
+
+		}
+
+	}
+	else
+	{
+		while(i<numSamples)
+		{
+
+			j = rand()%count;
+			*(randIndex + i) = j;
+			i++;
+
+		}
 
 
 
+	}
 
-
+	for(int i = 0;i<numSamples;i++)
+	{
+	
+		cout<<"Index Values \t"<<*(randIndex + i)<<endl;
+	}
+}
