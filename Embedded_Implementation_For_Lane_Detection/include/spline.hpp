@@ -12,6 +12,9 @@ class Spline
 		int degree;
 		Linepoint points[4];
 		vector<Linepoint> spline_x_y_points;
+		int x_limit_min;
+		int x_limit_max;
+
 
 };
 
@@ -20,10 +23,13 @@ void getRansacSplines(vector<Line>& line_objects, vector<Spline>& spline_objects
 Spline getLine2Spline(Line& line_object, int degree);
 Linepoint getDirection(const Linepoint& v1, const Linepoint& v2);
 void drawSpline(Mat& gray_ipm_image, vector<Spline>& spline_objects);
-void getSplinePoints(Spline& spline, float resolution);
+vector<Linepoint> getSplinePoints(Spline& spline, float resolution);
 float* evaluateSpline(Spline& spline, float resolution, float* tangents);
-
-
+void getLineIntersection(Line& line_obj, int width, int height);
+void fitbezierSpline(Spline& prevSpline, vector<Linepoint>& spline_x_y_points, int degree);
+void fitSpline(vector<Spline>& spline_objects);
+void getCumSum(float* in_arr, float* out_arr, int count);
+void calculatenew_weights(float* weights, int numSamples, int* randIndex, int count);
 
 
 
