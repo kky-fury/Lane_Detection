@@ -4,7 +4,7 @@
 void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 {
 	int count_line_objects =  line_objects.size();
-	
+	cout<<count_line_objects<<endl;
 	/*
 	for(int i = 0;i<line_objects.size();i++)
 	{
@@ -30,6 +30,9 @@ void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 		pt2.y = (int)(line[3] + mult*line[1]);
 		
 		boundline(200, 400, pt1, pt2);
+		
+		
+		/*
 		int x_limit_max = std::max(line_objects[i].startpoint.x, line_objects[i].endpoint.x);
 		int x_limit_min = std::min(line_objects[i].startpoint.x, line_objects[i].endpoint.x);
 		
@@ -39,16 +42,30 @@ void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 			pt1.x = x_limit_max - 1;
 
 		if(pt2.x < x_limit_min)
-			pt2.x = x_limit_min - 3;
+			pt2.x = x_limit_min - 1;
 		else if(pt2.x > x_limit_max)
-			pt2.x = x_limit_max - 3;
-		
+			pt2.x = x_limit_max - 1;
+		*/
 		//cout<<"Line Coordinates \t"<<"Point 1 \t"<<"("<<pt1.x<<","<<pt1.y<<")"<<endl;
 		//cout<<"Line Coordinates \t"<<"Point 2 \t"<<"("<<pt2.x<<","<<pt2.y<<")"<<endl;	
-	
+		
+		Line line_obj;
+		if(pt1.y > pt2.y)
+		{
+			line_obj.startpoint = {pt2.x, pt2.y};
+			line_obj.endpoint = {pt1.x, pt1.y};
+		}
+		else
+		{
+			line_obj.startpoint = {pt1.x, pt1.y};
+			line_obj.endpoint = {pt2.x, pt2.y};
+		}
+
+
+		getLinePixels(line_obj, gray_ipm_image);
 		/*final check*/
 	//	int dist_between_points = fabs(pt1.x - pt2.x);
-		cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
+	//	cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
 		
 	}
 
@@ -333,6 +350,127 @@ void boundline(int width, int height, Point& pt1, Point& pt2)
 
 }
 
+void getLinePixels(Line& line_obj, Mat& gray_ipm_image)
+{
+	Linepoint start, end;
+	
+	/*
+	 * start.x = line_obj.startpoint.x;
+	start.y = line_obj.startpoint.y;
+
+	end.x = line_obj.endpoint.x;
+	end.y = line_obj.endpoint.y;
+	*/
+	start = {line_obj.startpoint.x, line_obj.startpoint.y};
+	end = {line_obj.endpoint.x, line_obj.endpoint.y};
+
+	int deltay = end.y - start.y;
+	int deltax = end.x - end.y;
+	
+	bool steep = false;
+	if(abs(deltay) > abs(deltax))
+	{
+		steep = true;
+		int t;
+
+		t = start.x;
+		start.x = start.y;
+		start.y = t;
+
+		t = end.x;
+		end.x = end.y;
+		end.y = t;
+	}
+
+	bool swap = false;
+	
+	if(start.x > end.x)
+	{
+		Linepoint t = start;
+		start = end;
+		end = t;
+		
+		swap = true;
+
+	}
+
+	deltay = end.y - start.y;
+	deltax = end.x - start.x;
+
+	int error = 0;
+	int deltaerror = abs(deltay);
+
+	int ystep = -1;
+	
+	if(deltay >=0)
+	{
+		ystep = 1;
+	}
+	
+	vector<Linepoint> pixels(end.x - start.x + 1);
+	int i,j;
+	j = start.y;
+
+	int k, kupdate;
+	if(!swap)
+	{
+		k =0;
+		kupdate = 1;
+	
+	}
+	else
+	{
+		k = pixels.size() -1;
+		kupdate = -1;
+
+	}
+	
+	for(i = start.x; i<end.x;i++, k+=kupdate)
+	{
+
+		if(steep)
+		{
+			pixels[k] = {j, i};
+ 
+		}
+		else
+		{
+			pixels[k] = {i, j};
+		}
+
+		error += deltaerror;
+		
+		if(2*error >= deltax)
+		{
+			j += ystep;
+			error -= deltax;
+
+		}
+		
+	
+		
+
+	}
+	
+	
+	for(int i =0;i<pixels.size() -1;i++)
+	{
+		Point pt1, pt2;
+		pt1 =  {pixels[i].x, pixels[i].y};
+		pt2 = {pixels[i+1].x, pixels[i+1].y};
+
+	//	cout<<"Line pixels \t"<<pt1.x<<"\t"<<pt1.y<<endl;
+	//	cout<<"Line pixels \t"<<pt2.x<<"\t"<<pt2.y<<endl;
+		if((pt1.x > 0 ||  pt1.y > 0) && (pt2.x > 0 || pt2.y > 0))
+			cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
+	}
+
+
+
+
+
+
+}
 
 
 
