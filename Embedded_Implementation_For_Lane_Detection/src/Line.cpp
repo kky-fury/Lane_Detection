@@ -69,7 +69,6 @@ void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines, int* vot
 		cout<<"Current Line Votes \t"<<line_objects[i].votes<<endl;
 	}
 	*/
-
 };
 
 void initializePoints(vector<Line>& line_objects, unsigned int* clist, int count)
@@ -139,7 +138,7 @@ void initializeLinePoints(vector<Linepoint>& x_y_points, vector<Line>& line_obje
 void checklanewidth(vector<Line>& line_objects, int line_count)
 {
 	int min_distance = 10;
-	int max_distance_two_side_lanes = 45;
+	int max_distance_two_side_lanes = 30;
 	int max_distance_two_edge_lanes = 70;
 
 	vector<int> x_points(line_count); 
@@ -171,15 +170,26 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 	{
 		vector<int> diff_array(line_count);
 		adjacent_difference(x_points.begin(), x_points.end(), diff_array.begin());
-		vector<int>::const_iterator i;
-		vector<Line>::const_iterator j;
-		for(i =  diff_array.begin() + 1, j =  line_objects.begin() + 1;i<diff_array.end();i++, j++)
+		vector<int>::iterator i;
+		vector<coor_vote>::iterator j;
+		int curr_votes = coor_vote_arr[0].votes;
+		for(i = diff_array.begin() + 1, j = coor_vote_arr.begin() + 1;i<diff_array.end();i++,j++)
 		{
-			if(*i < min_distance || *i > max_distance_two_edge_lanes)
-			{		
-				line_objects.erase(j);
+			if(*i < min_distance || j->votes < curr_votes || *i >=max_distance_two_edge_lanes)
+			{
+				if(j->votes <= curr_votes || *i >=max_distance_two_edge_lanes)
+				{
+					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
+				}
 			}
+			if(j->votes > curr_votes)
+			{
+				curr_votes = j->votes;			
+			}
+
+
 		}
+
 
 	}
 	else if(line_count == 3)
@@ -192,30 +202,32 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 		int curr_votes = coor_vote_arr[0].votes;
 		for(i = diff_array.begin() + 1, j = coor_vote_arr.begin() + 1; i<diff_array.end();i++,j++)
 		{
-			if(*i < min_distance || j->votes < curr_votes)
+			if(*i < min_distance || j->votes < curr_votes || *i>=max_distance_two_edge_lanes)
 			{
-				if(j->votes <= curr_votes)
+				if(j->votes <= curr_votes || *i>= max_distance_two_edge_lanes)
 				{	
 					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
 
 				}
 			}
-			else if(j->votes > curr_votes)
+			if(j->votes > curr_votes)
 			{
 				curr_votes = j->votes;
 			}
 	
 		}
 
-		if(line_objects[1].votes > line_objects[0].votes)
+		if(line_objects.size() == 2)
 		{
-			line_objects.erase(line_objects.begin());
+			if(line_objects[1].votes > line_objects[0].votes)
+			{
+				line_objects.erase(line_objects.begin());
+			}
+			else
+			{
+				line_objects.erase(line_objects.begin() + 1);
+			}
 		}
-		else
-		{
-			line_objects.erase(line_objects.begin() + 1);
-		}
-	
 	}
 	else if(line_count == 4)
 	{
@@ -229,9 +241,9 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 		for(i = diff_array.begin() + 1, j = coor_vote_arr.begin() + 1; i<diff_array.end();i++,j++)
 		{
 
-			if(*i < min_distance || j->votes < curr_votes)
+			if(*i < min_distance || j->votes < curr_votes || *i >= max_distance_two_edge_lanes || *i >= max_distance_two_side_lanes)
 			{
-				if(j->votes <= curr_votes)
+				if(j->votes <= curr_votes || *i>= max_distance_two_edge_lanes || *i >= max_distance_two_side_lanes)
 				{
 					
 					/*
@@ -255,16 +267,17 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 			
 			
 		}
-		
-		if(line_objects[1].votes > line_objects[0].votes)
+		if(line_objects.size() == 2)
 		{
-			line_objects.erase(line_objects.begin());
+			if(line_objects[1].votes > line_objects[0].votes)
+			{
+				line_objects.erase(line_objects.begin());
+			}
+			else
+			{
+				line_objects.erase(line_objects.begin() + 1);
+			}
 		}
-		else
-		{
-			line_objects.erase(line_objects.begin() + 1);
-		}
-
 	}
 	else
 	{
@@ -274,12 +287,23 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 		vector<int>::iterator i;
 		vector<coor_vote>::iterator j;
 		int curr_votes = coor_vote_arr[0].votes;
+	
+		/*
+		for(int i =0;i<line_objects.size();i++)
+		{
+			cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;	
+			cout<<line_objects[i].votes<<endl;
+		}
+		*/
 		for(i = diff_array.begin() + 1, j = coor_vote_arr.begin() + 1; i<diff_array.end();i++,j++)
 		{
-			if(*i < min_distance || j->votes < curr_votes)
+			if(*i < min_distance || j->votes < curr_votes || *i >= max_distance_two_edge_lanes || *i >= max_distance_two_side_lanes)
 			{	
+				if(j->votes <= (curr_votes-3) || *i>= max_distance_two_edge_lanes || *i >= max_distance_two_side_lanes) 
+				{
+					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
 				
-				line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
+				}
 				/*
 				for(int i =0;i<line_objects.size();i++)
 				{
@@ -288,11 +312,69 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 				}
 				*/
 			}
-			else if(j->votes > curr_votes)
+			if(j->votes > curr_votes)
 				curr_votes = j->votes;
 	
 		}
+		for(int i =0;i<line_objects.size();i++)
+		{
+			cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;	
+			cout<<line_objects[i].votes<<endl;
+		}
+	
+		if(line_objects.size() ==2 && fabs(max(line_objects[0].startpoint.x, line_objects[0].endpoint.x) - max(line_objects[1].startpoint.x, line_objects[1].endpoint.x)) < 5)
+		{
+			if(line_objects[1].votes > line_objects[0].votes)
+			{
+				line_objects.erase(line_objects.begin());
+			}
+			else
+			{
+				line_objects.erase(line_objects.begin() + 1);
+			}
 
+		}
+		else if(line_objects.size() == 2 && fabs(max(line_objects[0].startpoint.x, line_objects[0].endpoint.x) - max(line_objects[1].startpoint.x, line_objects[1].endpoint.x)) > max_distance_two_side_lanes)
+		{
+			line_objects.erase(line_objects.begin() + 1);
+		}
+		else
+		{
+			/*
+			for(int  =0;i<line_objects.size();i++)
+			{
+				if(abs(line_objects[i].startpoint.x - line_objects[i].endpoint.x) > 20)
+				{
+					cout<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<"\t"<<endl;
+					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == line_objects[i].startpoint.x) && (lhs.endpoint.x == line_objects[i].endpoint.x) ;}),line_objects.end());
+				}
+
+			}
+			*/
+			vector<int3> x_points_arr(line_objects.size());
+
+			for(int i =0;i<line_objects.size();i++)
+			{
+				x_points_arr[i] = {abs(line_objects[i].startpoint.x - line_objects[i].endpoint.x), line_objects[i].startpoint.x, line_objects[i].endpoint.x};
+
+			}
+			for(int i = 0;i<x_points_arr.size();i++)
+			{
+				if(x_points_arr[i].x > 10 || x_points_arr[i].y < 31 || x_points_arr[i].z < 31 || x_points_arr[i].y > 140 || x_points_arr[i].z > 140)
+				{
+					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == x_points_arr[i].y) && (lhs.endpoint.x == x_points_arr[i].z) ;}),line_objects.end());
+
+				}
+		
+			}
+		}
+		
+		
+		for(int i =0;i<line_objects.size();i++)
+		{
+			cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;	
+			//cout<<line_objects[i].votes<<endl;
+		}
 	}
 
 
