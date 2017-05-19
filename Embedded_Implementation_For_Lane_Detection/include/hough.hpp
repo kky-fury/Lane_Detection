@@ -12,9 +12,10 @@
 #include<math.h>
 #include<cstring>
 #include<string>
+#include<map>
 
 #define IMG_WIDTH	192
-#define IMG_HEIGHT 224
+#define IMG_HEIGHT 352
 #define IMG_SIZE (IMG_WIDTH*IMG_HEIGHT)
 
 /*defintion to expand macros*/
@@ -39,6 +40,13 @@ typedef struct lines_w_non_zero_t
 	int* votes;
 	int count;
 }lines_w_non_zero;
+
+typedef struct floatwint_t
+{
+	float x;
+	int y;
+
+}floatwint;
 
 /*Function Definitions*/
 

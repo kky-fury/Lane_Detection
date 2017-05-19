@@ -10,7 +10,7 @@ class Spline
 {
 	public:
 		int degree;
-		Linepoint points[4];
+		Linepoint_f points[4];
 		vector<Linepoint> spline_x_y_points;
 		int x_limit_min;
 		int x_limit_max;
@@ -29,8 +29,7 @@ void getLineIntersection(Line& line_obj, int width, int height);
 void fitbezierSpline(Spline& prevSpline, vector<Linepoint>& spline_x_y_points, int degree);
 void fitSpline(vector<Spline>& spline_objects);
 void getCumSum(float* in_arr, float* out_arr, int count);
-void calculatenew_weights(float* weights, int numSamples, int* randIndex, int count);
-
-
+void calculatenew_weights(float* weights, int numSamples, int* randIndex, int count); 
+Spline fitsplinewithRansac(vector<Linepoint>& SamplePoints, int degree, int count);
 
 #endif

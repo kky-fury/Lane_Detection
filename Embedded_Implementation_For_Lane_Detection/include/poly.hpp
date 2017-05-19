@@ -21,3 +21,4 @@ vector<double> getLinePoints(Line& line_obj);
 void polyval(const std::vector<double>& oCoeff, Mat& gray_IPM_image, Line& line_obj) ;
 void print_d_vector(const std::vector<double>& arr);
 vector<Linepoint> getPoints(const vector<Linepoint>& x_y_points, Line& line_obj);
+double getSlope(double a, double x, double b );

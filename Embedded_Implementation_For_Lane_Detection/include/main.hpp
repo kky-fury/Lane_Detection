@@ -8,6 +8,8 @@
 #include"hough.hpp" 
 #include"line.hpp"
 #include"line_fitting.hpp"
-
+//#include"spline.hpp"
+#include"poly.hpp"
+#include"read_file.hpp" 
 
 #endif

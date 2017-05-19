@@ -25,15 +25,13 @@ using namespace cv;
 
 
 
-void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image);
+void fit_line(Line& line_objects, Mat& gray_ipm_image);
 void fitline2D(vector<Linepoint>& x_y_points, float* line);
 void fitlinels(vector<Linepoint>& x_y_points, int count, float* weights, float* line);
 double calcdist2D(vector<Linepoint>& x_y_points, int count, float* line, float* dist);
 void calculateweights(float* dist, int count, float* weights);
 void boundline(int width, int height, Point& pt1, Point& pt2);
-
-
-
+void getLinePixels(Line& line_obj, Mat& gray_ipm_image);
 
 
 
