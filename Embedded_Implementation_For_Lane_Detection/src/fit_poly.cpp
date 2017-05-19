@@ -2,6 +2,9 @@
 #include"poly.hpp"
 
 bool debug_poly = false;
+/*If slope > 0 flag = 1 else flag = 0*/
+int flag = 0;
+
 
 
 void print_matrix(const boost::numeric::ublas::matrix<double> &m)
@@ -36,8 +39,11 @@ void getPolyFit(Line& line_objects, Mat& gray_IPM_image, vector<Linepoint>& x_y_
 {
 			
 	vector<Linepoint> fitting_points = getPoints(x_y_points, line_objects);
-	if(fitting_points.size() < 100)
-		return;
+	
+	//cout<<"Number of Fitting Points \t"<<fitting_points.size()<<endl;
+	
+	//if(fitting_points.size() < 100)
+	//	return;
 	vector<double> coeff = polyfit(fitting_points, 2);	
 	polyval(coeff, gray_IPM_image, line_objects);		
 
@@ -122,6 +128,7 @@ vector<double> polyfit(vector<Linepoint>& x_y_points, int degree)
 		}
 
 	}
+	
 	if(debug_poly)
 	{
 		print_matrix(oXmatrix);
@@ -129,6 +136,7 @@ vector<double> polyfit(vector<Linepoint>& x_y_points, int degree)
 	}
 
 	matrix<double> oXtMatrix(trans(oXmatrix));
+
 	if(debug_poly)
 	{
 		print_matrix(oXtMatrix);
@@ -145,6 +153,7 @@ vector<double> polyfit(vector<Linepoint>& x_y_points, int degree)
 		print_matrix(oXtYMatrix);
 	}
 	permutation_matrix<int> pert(oXtXMatrix.size1());
+		
 	const std::size_t singular = lu_factorize(oXtXMatrix, pert);
 
 	BOOST_ASSERT( singular == 0 );
@@ -161,13 +170,14 @@ vector<double> polyfit(vector<Linepoint>& x_y_points, int degree)
 
 void polyval(const std::vector<double>& oCoeff, Mat& gray_IPM_image, Line& line_obj)
 {
-
+	/*
 	vector<Linepoint> v_unique_points;
 	double a,b,c, determinant;
 	double x1,x2;
 	a = oCoeff[2];
 	b = oCoeff[1];
 	
+
 	for(int i = 399 ;i >= 0; i -= 1)
 	{
 		c = oCoeff[0] - i;
@@ -229,8 +239,280 @@ void polyval(const std::vector<double>& oCoeff, Mat& gray_IPM_image, Line& line_
 			cout<<"Point 1 \t"<<pt1.x<<"\t"<<pt1.y<<endl;
 			cout<<"Point 2 \t"<<pt2.x<<"\t"<<pt2.y<<endl;
 		}
+		if(pt1.x > 0 && pt1.x > 0)
+			cv::line(gray_IPM_image, pt1, pt2, (0,255, 0),2);
+	}
+	*/
+
+	/*
+	vector<Linepoint> v_unique_points;
+	double a,b,c, determinant;
+	double x1,x2, slope;
+	int height ;
+	a = oCoeff[2];
+	b = oCoeff[1];
+	c = oCoeff[0];
+
+	determinant = b*b - 4*a*c; 
+
+	if(determinant > 0)
+	{
+			x1 =  (-b + sqrt(determinant)) / (2*a);
+			x2 = (-b - sqrt(determinant)) / (2*a);
+	}
+	else if (determinant == 0)
+	{
+			x1 = (-b + sqrt(determinant)) / (2*a);
+	}
+	
+
+	cout<<"The values \t"<<x1<<"\t"<<x2<<endl;
+	double slope_1 = 2*a*x1 + b;
+	double slope_2 = 2*a*x2 + b;
+
+	cout<<"Value of slope_1 \t"<<slope_1<<endl;
+	cout<<"Value of slope_2 \t"<<slope_2<<endl;
+
+	for( int i =  400; i>=0 ;i--)
+	{
+		c = oCoeff[0] - i;
+		determinant = b*b - 4*a*c;
+		if(determinant >= 0)
+		{
+			x1 =  (-b + sqrt(determinant)) / (2*a);
+			x2 = (-b - sqrt(determinant)) / (2*a);
+			height = i;		
+			break;
+		}
+	}
+	
+	cout<<"determinant at image height \t"<<height<<"\t is"<<determinant<<endl;
+	cout<<"The values \t"<<x1<<"\t"<<x2<<endl;
+
+	slope_1 = 2*a*x1 + b;
+	slope_2 = 2*a*x2 + b;
+
+	cout<<"Value of slope_1 \t"<<slope_1<<endl;
+	cout<<"Value of slope_2 \t"<<slope_2<<endl;
+	*/
+
+
+	/*
+	if(determinant > 0)
+	{
+			x1 =  (-b + sqrt(determinant)) / (2*a);
+			x2 = (-b - sqrt(determinant)) / (2*a);
+	}
+	else if (determinant == 0)
+	{
+			x1 = (-b + sqrt(determinant)) / (2*a);
+	}
+	*/
+	//cout<<"The values \t"<<x1<<"\t"<<x2<<endl;
+
+
+	vector<Linepoint> v_unique_points;
+	double a,b,c, determinant;
+	double x1,x2, slope_1,slope_2, slope;
+	int height ;
+	
+	int x_limit_max = max(line_obj.startpoint.x, line_obj.endpoint.x);
+	int x_limit_min = min(line_obj.startpoint.x, line_obj.endpoint.x);
+
+	a = oCoeff[2];
+	b = oCoeff[1];
+
+	int size = (x_limit_max + 1) - (x_limit_min - 1) + 1;
+	
+	vector<int> points(size);
+	
+	for(int k = x_limit_min - 1, j=0;k<=x_limit_max + 1;k++,j++)
+	{	
+		points[j] = k;
+	}
+
+	size_t nDegree = oCoeff.size();
+	std::vector<double>	oY(size);
+
+	for ( size_t i = 0; i < size; i++ )
+	{
+		double nY = 0;
+		double nXT = 1;
+		double nX = points[i];
+
+		for ( size_t j = 0; j < nDegree; j++ )
+		{
+			nY += oCoeff[j] * nXT;
+			nXT *= nX;
+		}
+
+		oY[i] = nY;
+	}
+
+	for(int i = 0;i < size;i++)
+	{
+		slope = 2*a*points[i] + b;
+		//cout<<"Value of slope \t"<<slope<<endl;
+		if(slope > 0)
+		{
+			flag = 1;
+			break;
+		}
+		else
+		{
+			flag = 0;
+			break;
+		}
+		//cout<<"Value of slope \t"<<slope<<endl;	
+	}
+	
+	
+		
+	for(int i =0;i < size;i++)
+	{
+		v_unique_points.push_back({(int) round(points[i]), (int) round(oY[i])});
+
+	}
+
+
+	c = oCoeff[0];
+	determinant = b*b - 4*a*c;
+	if(determinant > 0)
+	{
+			x1 =  (-b + sqrt(determinant)) / (2*a);
+			x2 = (-b - sqrt(determinant)) / (2*a);
+			slope_1 = getSlope(a , x1 , b);
+			slope_2 = getSlope(a , x2, b);
+			
+			if(flag)
+			{
+				if(slope_1 > 0)
+					v_unique_points.push_back({(int) round(x1), (int) 0});
+				if(slope_2 > 0)
+					v_unique_points.push_back({(int) round(x2), (int) 0});
+			}
+			else
+			{
+				if(slope_1 < 0)
+					v_unique_points.push_back({(int) round(x1), (int) 0});
+				if(slope_2 < 0)
+					v_unique_points.push_back({(int) round(x2), (int) 0});	
+			}
+		
+	}
+	else if(determinant == 0)
+	{
+			x1 =  (-b + sqrt(determinant)) / (2*a);
+			slope_1 =  getSlope(a, x1, b);
+
+			if(flag)
+			{
+				if(slope_1 > 0)
+				{
+					v_unique_points.push_back({(int) round(x1), (int) 0});
+				}
+			}
+			else
+			{
+				if(slope_1 < 0)
+					v_unique_points.push_back({(int) round(x1), (int) 0});
+			}
+	
+	}
+
+
+	for( int i =  400; i >= 0 ;i--)
+	{
+		c = oCoeff[0] - i;
+		determinant = b*b - 4*a*c;
+		//cout<<"Value of determinant  at \t"<<i<<"\t"<<determinant<<endl;
+		
+		if(determinant >= 0)
+		{
+			x1 =  (-b + sqrt(determinant)) / (2*a);
+			x2 = (-b - sqrt(determinant)) / (2*a);
+			cout<<x1<<"\t"<<x2<<endl;
+			height = i;		
+			slope_1 = getSlope(a, x1, b);
+			slope_2 = getSlope(a, x2, b);
+			
+			if(flag)
+			{
+				if(slope_1 > 0)
+					v_unique_points.push_back({(int) round(x1), (int) height});
+				if(slope_2 > 0)
+					v_unique_points.push_back({(int) round(x2), (int) height});
+			}
+			else
+			{
+				if(slope_1 < 0)
+				{
+				//	v_unique_points.push_back({std::max( (int) round(x1 + 1), line_obj.endpoint.x), (int) height});
+					int sel_points = std::max((int) std::round(x1 + 1), line_obj.endpoint.x);
+					v_unique_points.push_back({sel_points, (int) height});
+				}
+				if(slope_2 < 0)
+				{
+					//v_unique_points.push_back({std::max( (int) round(x1 + 1), line_obj.endpoint.x), (int) height});
+					int sel_points = std::max( (int) std::round(x2 + 1), line_obj.endpoint.x);
+					v_unique_points.push_back({sel_points, (int) height});
+				}
+			}	
+			break;
+		}
+		else if(determinant < 0)
+		{
+			double real_part = -b/(2*a);
+			cout<<real_part<<endl;
+			height = i;
+			v_unique_points.push_back({(int) round(real_part), (int) height});
+			break;
+		}
+	}
+
+	sort(v_unique_points.begin(), v_unique_points.end(), [](const Linepoint& lhs, const Linepoint& rhs){
+			if(lhs.x != rhs.x)
+			{
+				return lhs.x  < rhs.x;
+			}
+			else
+				return lhs.y < rhs.y;
+			});
+
+
+	if(debug_poly)
+	{
+		for(int i =0;i<v_unique_points.size();i++)
+		{
+			cout<<"Points \t"<<v_unique_points[i].x<<"\t"<<v_unique_points[i].y<<endl;
+		}		
+	}
+	
+	if(debug_poly)
+	{
+		for(int i  = 0 ;i < oY.size() ;i++)
+		{
+			cout<<"Y_Value \t"<<oY[i]<<"\t X_Value \t"<<points[i]<<endl;
+		}
+	}
+
+	
+
+	for(int i = 1;i<=v_unique_points.size() - 1;i++)
+	{
+		Point pt1, pt2;
+		pt1 = {(int) v_unique_points[i-1].x, (int) v_unique_points[i-1].y};
+		pt2 = {(int) v_unique_points[i].x, (int) v_unique_points[i].y};
+		
+		if(debug_poly)
+		{
+			cout<<"Point 1 \t"<<pt1.x<<"\t"<<pt1.y<<endl;
+			cout<<"Point 2 \t"<<pt2.x<<"\t"<<pt2.y<<endl;
+		}
+		
 		cv::line(gray_IPM_image, pt1, pt2, (0,255, 0),2);
 	}
+
 }
 
 vector<double> getLinePoints(Line& line_obj)
@@ -346,4 +628,10 @@ vector<double> getLinePoints(Line& line_obj)
 	}
 
 	return x_values;
+}
+
+double getSlope(double a, double x, double b )
+{
+	return (2*a*x + b);
+
 }

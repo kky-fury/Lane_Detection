@@ -229,7 +229,7 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		}
 	*/
 		/*Replace by maximum function using cuda*/
-		const int threshold = 15;
+		const int threshold = 20;
 
 		unsigned char* gimage;	
 		unsigned int* glist; 
@@ -344,7 +344,7 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		}
 	
 
-		int maxLines = 50;
+		int maxLines = 75;
 			
 		float2* d_lines;
 		int* d_votes;
@@ -376,8 +376,6 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 
 		cudaMemcpy(&countlines, counterPtr_lines, sizeof(int),cudaMemcpyDeviceToHost);
 		CudaCheckError();
-	
-		cout<<"totalCount of lines"<<countlines<<endl;	
 		
 		countlines = min(countlines, maxLines);
 	
@@ -390,6 +388,73 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		cudaMemcpy(votes, d_votes, countlines*sizeof(int),cudaMemcpyDeviceToHost);
 		CudaCheckError();
 
+		map<float, vector<floatwint>> theta_to_votes_map;	
+		for(int i =0;i<countlines;i++)
+		{
+			floatwint obj = {(float)(lines + i)->x,  *(votes + i) };
+			theta_to_votes_map[(lines + i)->y].push_back(obj);
+		}
+		
+		for(auto it = theta_to_votes_map.begin() ;it!= theta_to_votes_map.end(); ++it)
+		{
+			sort(it->second.begin() , it->second.end(), [](const floatwint& lhs, const floatwint& rhs) {return lhs.y > rhs.y;});
+			//cout<<"Vector Size \t"<<theta_to_votes_map[it->first].size()<<endl;
+		}
+
+
+	
+		/*
+		int nSelectedLines = theta_to_votes_map.size();
+		float2* selLines = (float2*)malloc(nSelectedLines*sizeof(float2));
+		int* selvotes = (int*)malloc(nSelectedLines*sizeof(selvotes));
+		
+		int index = 0;
+		*/
+		
+		/*
+		for(auto it = theta_to_votes_map.begin(); it!= theta_to_votes_map.end(); ++it)
+		{
+			(selLines + index)->x =  (it->second.begin())->x;
+			(selLines + index)->y =  it->first;
+			*(selvotes + index) = (it->second.begin())->y;
+			index++;
+		}
+	*/
+		auto it = theta_to_votes_map.begin();
+		int index = 0;
+		int nSelectedLines = theta_to_votes_map[it->first].size();
+		float2* selLines = (float2*)malloc(nSelectedLines*sizeof(float2));
+		int* selvotes = (int*)malloc(nSelectedLines*sizeof(selvotes));
+
+		for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+		{
+				(selLines + index)->x =  (it2)->x;
+				(selLines + index)->y = it->first;
+				*(selvotes + index) = (it2)->y;
+				index++;
+		}
+
+		for(int i = 0 ; i < index;i++)
+		{
+			cout<<"Theta Value \t"<<(selLines + i)->y<<"\t"<<"Rho Value\t"<<(selLines + i)->x<<endl;
+			cout<<"Votes \t"<<*(selvotes + i)<<endl;
+		}
+
+		if(1)
+		{
+			for(auto it = theta_to_votes_map.begin() ;it!= theta_to_votes_map.end(); ++it)
+			{
+				cout<<"Key value \t"<<it->first<<" \t Vector Values \t";
+	
+				for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+				{
+					cout<<it2->x<<"\t"<<it2->y<<"\t";
+				}
+	
+				cout<<endl;
+			}
+		}
+		
 		if(debug_hough)
 		{
 			Mat gray_image = imread("/home/nvidia/Lane_Detection/Test_Images/IPM_test_image_4.png",0);
@@ -398,8 +463,11 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 			{
 				float theta_line = (lines + i)->y;
 				float rho = (lines + i)->x;
-				
-				cout<<"Rho - "<<rho<<"theta- "<<theta_line<<endl;
+				int curr_votes =  *(votes + i);
+
+				cout<<"Rho - "<<rho<<" \t theta- "<<theta_line<<endl;
+				cout<<"Corresponding Votes \t"<<curr_votes<<endl;
+
 				cv::Point pt1, pt2;
 	
 				double a = cos(theta_line);
@@ -415,7 +483,6 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 				
 				
 				line(gray_image, pt1,pt2, (255,0,0),1);
-				
 			}
 			imshow("Image", gray_image);
 			waitKey(0);
@@ -425,11 +492,16 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		lines_w_non_zero* values = (lines_w_non_zero*)malloc(sizeof(lines_w_non_zero));
 		lin_votes* mem_hough_lines = (lin_votes*)malloc(sizeof(lin_votes));
 		values->hough_lines = mem_hough_lines;
-		values->hough_lines->lines = lines;
-		values->hough_lines->countlines = countlines;
+		//values->hough_lines->lines = lines;
+		values->hough_lines->lines =  selLines;
+
+		//values->hough_lines->countlines = countlines;
+		values->hough_lines->countlines = nSelectedLines;
+
 		values->clist = clist;
 		values->count = totalCount;
-		values->votes = votes;
+		values->votes = selvotes;
+		//values->votes = votes;
 		/*
 		lin_votes* hough_lines = (lin_votes*)malloc(sizeof(lin_votes));
 		hough_lines->lines = lines;

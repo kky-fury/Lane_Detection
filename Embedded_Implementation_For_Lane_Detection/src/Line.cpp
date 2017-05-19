@@ -40,6 +40,7 @@ void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines, int* vot
 	{
 		float theta_line = (hough_lines->lines + i)->y;
 		float rho = (hough_lines-> lines + i)->x;
+		
 		line_coord* coordinates = getLineEndPoints(rho, theta_line, image_width, image_height);
 		Line line_obj;
 		line_obj.setPoints(coordinates);
@@ -60,8 +61,7 @@ void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines, int* vot
 		cout<<"Current Line Votes \t"<<line_objects[i].votes<<endl;
 	}
 	*/
-	checklanewidth(line_objects, line_count);
-
+	//checklanewidth(line_objects, line_count);
 	/*
 	for(int i = 0;i<line_objects.size();i++)
 	{
@@ -71,7 +71,7 @@ void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines, int* vot
 	*/
 };
 
-void initializePoints(vector<Line>& line_objects, unsigned int* clist, int count)
+vector<Linepoint> initializePoints(vector<Line>& line_objects, unsigned int* clist, int count)
 {
 	vector<Linepoint> x_y_points(count);
 	for(int i =0;i<count;i++)
@@ -82,7 +82,6 @@ void initializePoints(vector<Line>& line_objects, unsigned int* clist, int count
 		x_y_points[i] = {x,y};
 	}
 	sort(x_y_points.begin(), x_y_points.end(), [] (const Linepoint& lhs, const Linepoint& rhs){return lhs.y < rhs.y; });	
-
 	/*
 	for(int i =0;i<count;i++)
 	{
@@ -92,7 +91,8 @@ void initializePoints(vector<Line>& line_objects, unsigned int* clist, int count
 	*/
 	initializeLinePoints(x_y_points, line_objects);
 
-	
+	return x_y_points;
+
 }
 
 void initializeLinePoints(vector<Linepoint>& x_y_points, vector<Line>& line_objects)
@@ -155,6 +155,23 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 	sort(x_points.begin(), x_points.end());
 	sort(coor_vote_arr.begin(), coor_vote_arr.end(), [](const coor_vote& lhs, const coor_vote& rhs){return lhs.coordinate < rhs.coordinate; });
 
+	vector<int> diff_array(line_count);	
+	adjacent_difference(x_points.begin(), x_points.end(), diff_array.begin());
+	
+	print_int_vector(diff_array);
+	vector<int>::iterator i;
+	vector<coor_vote>::iterator j;
+
+	for(i = diff_array.begin() + 1, j = coor_vote_arr.begin() + 1; i<diff_array.end(); i++,j++)
+	{
+		if(*i < min_distance || *i  > max_distance_two_side_lanes)
+		{
+			line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
+		}
+
+	}
+
+
 	/*
 	for(int i =0;i<coor_vote_arr.size();i++)
 	{
@@ -165,7 +182,7 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 	*/
 	//print_int_vector(x_points);
 
-
+	/*
 	if(line_count == 2)
 	{
 		vector<int> diff_array(line_count);
@@ -192,6 +209,9 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 
 
 	}
+	*
+	*/
+	/*
 	else if(line_count == 3)
 	{
 		vector<int> diff_array(line_count);
@@ -229,6 +249,8 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 			}
 		}
 	}
+	*/
+	/*
 	else if(line_count == 4)
 	{
 		vector<int> diff_array(line_count);
@@ -246,7 +268,8 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 				if(j->votes <= curr_votes || *i>= max_distance_two_edge_lanes || *i >= max_distance_two_side_lanes)
 				{
 					
-					/*
+		*/
+		/*
 					cout<<"Current Votes \t"<<j->votes<<endl;
 					cout<<"Max Votes \t"<<curr_votes<<endl;
 					for(int i =0;i<line_objects.size();i++)
@@ -255,6 +278,7 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 					}
 					cout<<"End of Loop"<<endl;
 					*/
+		/*
 					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());	
 							
 				}
@@ -279,15 +303,18 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 			}
 		}
 	}
+*/
+	/*
 	else
 	{
+	*/	/*
 		vector<int> diff_array(line_count);
 		adjacent_difference(x_points.begin(), x_points.end(), diff_array.begin());
-		print_int_vector(diff_array);
+		//print_int_vector(diff_array);
 		vector<int>::iterator i;
 		vector<coor_vote>::iterator j;
 		int curr_votes = coor_vote_arr[0].votes;
-	
+		*/
 		/*
 		for(int i =0;i<line_objects.size();i++)
 		{
@@ -295,6 +322,7 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 			cout<<line_objects[i].votes<<endl;
 		}
 		*/
+		/*
 		for(i = diff_array.begin() + 1, j = coor_vote_arr.begin() + 1; i<diff_array.end();i++,j++)
 		{
 			if(*i < min_distance || j->votes < curr_votes || *i >= max_distance_two_edge_lanes || *i >= max_distance_two_side_lanes)
@@ -304,6 +332,7 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
 				
 				}
+				*/
 				/*
 				for(int i =0;i<line_objects.size();i++)
 				{
@@ -311,17 +340,23 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 					cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;	
 				}
 				*/
+			
+		/*
 			}
 			if(j->votes > curr_votes)
 				curr_votes = j->votes;
 	
+		
 		}
+		*/
+		/*
 		for(int i =0;i<line_objects.size();i++)
 		{
 			cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;	
 			cout<<line_objects[i].votes<<endl;
 		}
-	
+		*/
+		/*
 		if(line_objects.size() ==2 && fabs(max(line_objects[0].startpoint.x, line_objects[0].endpoint.x) - max(line_objects[1].startpoint.x, line_objects[1].endpoint.x)) < 5)
 		{
 			if(line_objects[1].votes > line_objects[0].votes)
@@ -340,43 +375,62 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 		}
 		else
 		{
+		*/
 			/*
-			for(int  =0;i<line_objects.size();i++)
+			for(int i = 0;i<line_objects.size();i++)
 			{
 				if(abs(line_objects[i].startpoint.x - line_objects[i].endpoint.x) > 20)
 				{
-					cout<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<"\t"<<endl;
+				//	cout<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<"\t"<<endl;
 					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == line_objects[i].startpoint.x) && (lhs.endpoint.x == line_objects[i].endpoint.x) ;}),line_objects.end());
 				}
 
 			}
-			*/
-			vector<int3> x_points_arr(line_objects.size());
+			vector<int4> x_points_arr(line_objects.size());
+			vector<int> x_points_arr_1(line_objects.size());
 
 			for(int i =0;i<line_objects.size();i++)
 			{
-				x_points_arr[i] = {abs(line_objects[i].startpoint.x - line_objects[i].endpoint.x), line_objects[i].startpoint.x, line_objects[i].endpoint.x};
+				x_points_arr[i] = {abs(line_objects[i].startpoint.x - line_objects[i].endpoint.x), line_objects[i].startpoint.x, line_objects[i].endpoint.x, line_objects[i].votes};
+				x_points_arr_1[i] = max(line_objects[i].startpoint.x, line_objects[i].endpoint.x);
 
 			}
+		
+
+			vector<int> diff_array_1(line_objects.size());
+			adjacent_difference(x_points_arr_1.begin(), x_points_arr_1.end(), diff_array_1.begin());
+			print_int_vector(diff_array_1);
+			sort(x_points_arr.begin(), x_points_arr.end(), [](const int4& lhs, const int4& rhs){return (lhs.w  > rhs.w) ;});
+			*/
+			/*
 			for(int i = 0;i<x_points_arr.size();i++)
 			{
-				if(x_points_arr[i].x > 10 || x_points_arr[i].y < 31 || x_points_arr[i].z < 31 || x_points_arr[i].y > 140 || x_points_arr[i].z > 140)
+				cout<<"Values \t"<<x_points_arr[i].x<<"\t"<<x_points_arr[i].y<<"\t"<<x_points_arr[i].z<<"\t"<<x_points_arr[i].w<<endl;
+
+			}
+			*/
+		//	int curr_votes_i = x_points_arr[i].w;
+			/*
+			for(int i = 0;i<x_points_arr.size();i++)
+			{
+				if(x_points_arr[i].x > 10 || x_points_arr[i].y < 35 || x_points_arr[i].z < 35 || x_points_arr[i].y > 140 || x_points_arr[i].z > 140)
 				{
 					line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == x_points_arr[i].y) && (lhs.endpoint.x == x_points_arr[i].z) ;}),line_objects.end());
 
 				}
 		
 			}
-		}
-		
-		
+			*/
+	//	}
+	
+		/*
 		for(int i =0;i<line_objects.size();i++)
 		{
 			cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;	
 			//cout<<line_objects[i].votes<<endl;
 		}
-	}
-
+		*/
+	//}
 
 }
 

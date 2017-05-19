@@ -25,11 +25,6 @@ void  matrix_multiplication_spline(float* arr1, int arr1_rows, int arr1_cols, fl
 
 
 
-
-
-
-
-
 void getRansacSplines(vector<Line>& line_objects, vector<Spline>& spline_objects, Mat& gray_ipm_image)
 {
 	for(int i  = 0;i<line_objects.size();i++)
@@ -48,6 +43,7 @@ void getRansacSplines(vector<Line>& line_objects, vector<Spline>& spline_objects
 
 void drawSpline(Mat& gray_ipm_image, vector<Spline>& spline_objects)
 {
+
 	for(int i =0;i<spline_objects.size();i++)
 	{
 			vector<Linepoint> rpoints = getSplinePoints(spline_objects[i],.05);			
@@ -332,9 +328,10 @@ Spline getLine2Spline(Line& line_object, int degree)
 	spline.degree = 3;
 
 
-	spline.points[0] = line_object.startpoint;
-	spline.points[degree] = line_object.endpoint;
-
+	//spline.points[0] = (Linepoint_f) line_object.startpoint;
+	spline.points[0] = {(float) line_object.startpoint.x, (float) line_object.endpoint.x};
+	//spline.points[degree] = (Linepoint_f) line_object.endpoint;
+	spline.points[degree] = {(float) line_object.endpoint.x, (float) line_object.endpoint.y};
 	Linepoint direction = getDirection(line_object.endpoint, line_object.startpoint);
 	
 	for(int i = 1;i<degree;i++)
@@ -344,8 +341,8 @@ Spline getLine2Spline(Line& line_object, int degree)
 		point.x = line_object.startpoint.x + t*direction.x;
 		point.y = line_object.startpoint.y + t*direction.y;
 
-		spline.points[i] = point;
-
+		//spline.points[i] = (Linepoint_f) point;
+		spline.points[i] = {(float) point.x, (float) point.y};
 	}
 	spline.spline_x_y_points = line_object.x_y_points;
 
@@ -376,8 +373,8 @@ Linepoint getDirection(const Linepoint& v1, const Linepoint& v2)
 
 void fitbezierSpline(Spline& prevSpline, vector<Linepoint>& spline_x_y_points, int degree)
 {
-	int numSamples =  4;
-	int numIterations = 10;
+	int numSamples =  10;
+	int numIterations = 1;
 	int numGoodFit = 4;
 
 	int count = spline_x_y_points.size();
@@ -393,7 +390,8 @@ void fitbezierSpline(Spline& prevSpline, vector<Linepoint>& spline_x_y_points, i
 	getCumSum(weights, weights, count);
 
 	int* randIndex =  (int*)malloc(sizeof(int)*numSamples);
-	int* samplePoints = (int*)malloc(sizeof(int)*numSamples*2);
+	//int* samplePoints = (int*)malloc(sizeof(int)*numSamples*2);
+	vector<Linepoint> samplePoints(numSamples);
 	int* pointIndex = (int*)malloc(sizeof(int)*count);
 
 	Spline curSpline, bestSpline;
@@ -409,10 +407,42 @@ void fitbezierSpline(Spline& prevSpline, vector<Linepoint>& spline_x_y_points, i
 		{
 			*(pointIndex + i) =0;
 		}
+		
 		calculatenew_weights(weights, numSamples, randIndex, count);
+		for(int j = 0;j<numSamples;j++)
+		{
+			int p = *(randIndex + j);
+			*(pointIndex + p) = 1;
 
+			//*(samplePoints + j*2) = spline_x_y_points[p].x;
+			//*(samplePoints + j*2 + 1) = spline_x_y_points[p].y;
+			samplePoints[j] = {spline_x_y_points[p].x, spline_x_y_points[p].y};
+		}
 
+		if(debug_spline)
+		{
+		
+			for(int i = 0;i<numSamples;i++)
+			{
+				cout<<*(randIndex + i)<<endl;
+				cout<<"Coordinates of Sample Points \t"<<samplePoints[i].x<<"\t"<<samplePoints[i].y<<endl;
+			
+			}
+			for(int k = 0;k<count;k++)
+			{
+				cout<<*(pointIndex + k)<<endl;
+			}
+		}
 
+		curSpline = fitsplinewithRansac(samplePoints, DEGREE, numSamples);
+		/*
+		for(int i = 0;i<curSpline.degree;i++)
+		{
+			cout<<curSpline.points[i].x<<"\t"<<curSpline.points[i].y<<endl;
+		}
+
+		cout<<endl;
+		*/
 	}
 
 	
@@ -431,9 +461,6 @@ void fitbezierSpline(Spline& prevSpline, vector<Linepoint>& spline_x_y_points, i
 
 		}
 		
-
-
-
 
 	}
 
@@ -620,9 +647,162 @@ void calculatenew_weights(float* weights, int numSamples, int* randIndex, int co
 
 	}
 
-	for(int i = 0;i<numSamples;i++)
+	if(debug_spline)
 	{
+		for(int i = 0;i<numSamples;i++)
+		{
 	
-		cout<<"Index Values \t"<<*(randIndex + i)<<endl;
+			cout<<"Index Values \t"<<*(randIndex + i)<<endl;
+		}
 	}
+}
+
+Spline fitsplinewithRansac(vector<Linepoint>& samplePoints, int degree, int count)
+{
+
+	Spline spline;
+	spline.degree = degree;
+
+	int n = count;
+	
+	sort(samplePoints.begin(), samplePoints.end(), [] (const Linepoint& lhs, const Linepoint& rhs){return lhs.y < rhs.y;});
+
+	if(debug_spline)
+	{
+		for(int i = 0;i<count;i++)
+		{
+			cout<<"Coordinates \t"<<samplePoints[i].x<<"\t"<<samplePoints[i].y<<endl;
+
+		}
+	}
+	
+	
+	Linepoint_f p0 = {(float) samplePoints[0].x, (float) samplePoints[0].y};
+	
+	float diff = 0.f;
+	float* us = (float*)malloc(sizeof(float)*count);
+	
+	us[0] = 0;
+	
+	for(int i =1;i<count;++i)
+	{
+		float dx = samplePoints[i].x - samplePoints[i-1].x;
+		float dy = samplePoints[i].y - samplePoints[i-1].y;
+
+		*(us + i) = sqrt(dx*dx + dy*dy) + us[i-1];
+
+	}
+
+	diff = *(us + count -1);
+	//cout<<"Difference Value \t"<<diff<<endl;
+
+	float M3[] = {-1,3,-3,1,3,-6,3,0,-3,3,0,0,1,0,0,0};
+	
+	float *M = (float*)malloc(sizeof(float)*4*4);
+	memcpy(M, M3, sizeof(float)*4*4);
+		
+	float u = 0.f;
+
+	float* B = (float*)malloc(sizeof(float)*n*4);
+	for(int i =0;i<4;i++)
+	{
+		u = *(us + i)/diff;
+		
+		*(B + i*4 + 3) = 1;
+		*(B + i*4 + 2) = u;
+		*(B + i*4 + 1) = u*u;
+		*(B + i*4) = u*u*u;
+
+	}
+
+	matrix_multiplication_spline(B, n, 4, M, 4, 4,B);
+
+	if(1)
+	{
+		for(int i =0;i<n;i++)
+		{
+			for(int j = 0;j<4;j++)
+			{
+				cout<<*(B + i*4 + j)<<"\t";
+			}
+		cout<<endl;
+		}
+	
+	}
+
+	Mat B_arr = Mat(n, 4, CV_32F, B);
+
+	/*
+	cout<<endl;
+	for(int i =0;i<n;i++)
+	{
+		for(int j = 0;j<4;j++)
+		{
+			cout<<B_arr.at<float>(i,j)<<"\t";
+		}
+		cout<<endl;
+	}
+	cout<<endl;
+	*/
+	Mat points(n, 2, CV_32F);
+
+	for(int i =0;i<count;i++)
+	{
+		points.at<float>(i,0) = (float) samplePoints[i].x;
+		points.at<float>(i,1) = (float) samplePoints[i].y;
+	}
+
+
+	if(debug_spline)
+	{
+		for(int i = 0;i<count;i++)
+		{
+			cout<<points.at<float>(i,0)<<"\t"<<points.at<float>(i,1)<<endl;
+		}
+	}
+
+	if(debug_spline)
+	{
+		for(int i =0;i<4;i++)
+		{
+			for(int j =0;j<4;j++)
+			{
+			//	cout<<M_arr.at<float>(i,j)<<"\t";
+				cout<<B_arr.at<float>(i,j)<<"\t";
+			}
+
+			cout<<endl;
+		}
+	}
+	
+	Mat sp = Mat(degree + 1,2,CV_32F);
+	
+	solve(B_arr, points, sp, DECOMP_LU);
+
+	if(debug_spline)
+	{
+		for(int i =0;i<4;i++)
+		{
+			for(int j = 0;j<2;j++)
+			{
+				cout<<"Knot points \t"<<sp.at<float>(i,j)<<"\t";
+			}
+			cout<<endl;
+
+		}
+		cout<<endl;
+	}
+
+	for(int i = 0 ;i< (degree + 1);i++)
+	{
+		spline.points[i].x = sp.at<float>(i,0);
+		spline.points[i].y = sp.at<float>(i,1);
+	}
+
+	B_arr.release();
+	sp.release();
+	delete [] us;
+
+ return spline;
+
 }

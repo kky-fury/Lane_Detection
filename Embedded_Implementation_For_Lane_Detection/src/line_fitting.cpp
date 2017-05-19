@@ -1,10 +1,11 @@
 #include"line_fitting.hpp"
 
 
-void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
+//void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
+void fit_line(Line& line_objects, Mat& gray_ipm_image)
 {
-	int count_line_objects =  line_objects.size();
-	cout<<count_line_objects<<endl;
+	//int count_line_objects =  line_objects.size();
+	//cout<<count_line_objects<<endl;
 	/*
 	for(int i = 0;i<line_objects.size();i++)
 	{
@@ -15,13 +16,12 @@ void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 		}
 	}
 	*/
-
 	float* line = (float*)malloc(4*sizeof(float));
 	int mult = std::max(400, 200);
-	for(int i = 0;i<count_line_objects;i++)
-	{
+	//for(int i = 0;i<count_line_objects;i++)
+	//{
 		
-		fitline2D(line_objects[i].x_y_points, line);
+		fitline2D(line_objects.x_y_points, line);
 		//cout<<"Line Parameters"<<line[0]<<"\t"<<line[1]<<"\t"<<line[2]<<"\t"<<line[3]<<endl;
 		Point pt1, pt2;	
 		pt1.x = (int)(line[2] - mult*line[0]);
@@ -30,7 +30,6 @@ void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 		pt2.y = (int)(line[3] + mult*line[1]);
 		
 		boundline(200, 400, pt1, pt2);
-		
 		
 		/*
 		int x_limit_max = std::max(line_objects[i].startpoint.x, line_objects[i].endpoint.x);
@@ -67,7 +66,7 @@ void fit_line(vector<Line>& line_objects, Mat& gray_ipm_image)
 	//	int dist_between_points = fabs(pt1.x - pt2.x);
 	//	cv::line(gray_ipm_image, pt1, pt2, (0,255,0),2);
 		
-	}
+	//}
 
 
 

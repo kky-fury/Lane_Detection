@@ -5,7 +5,10 @@ int main(int argc, char* argv[])
 {
 
 	//Mat input_image =  imread("/home/nvidia/Lane_Detection/Original_Images/img_2.png");
-	Mat input_image = imread("/home/nvidia/image_2/um_000002.png");
+	/*Testing Set*/
+	//Mat input_image = imread("/home/nvidia/image_2/umm_000016.png");
+
+	Mat input_image = imread("/home/nvidia/training/image_2/umm_000010.png");
 
 	unsigned char* h_rgb_img = input_image.data;
 
@@ -36,58 +39,44 @@ int main(int argc, char* argv[])
 
 	BirdsEyeView bev(bev_res, invalid_value,bev_xRange_minMax, bev_zRange_minMax);
 	/*Projection matrix for left color camera in rectified coordinates*/
-	//For Image_0
+	//For image_0 /*um*/
 	matrix_t intrinsic_matrix
 	{
 		{7.215377000000e+02, 0.000000000000e+00, 6.095593000000e+02, 4.485728000000e+01},
 		{0.000000000000e+00 ,7.215377000000e+02 ,1.728540000000e+02 ,2.163791000000e-01},
 		{0.000000000000e+00, 0.000000000000e+00, 1.000000000000e+00, 2.745884000000e-03}
 	};
+	
+	/*For umm*/
+	/*
+	matrix_t intrinsic_matrix
+	{
+		{7.188560000000e+02, 0.000000000000e+00, 6.071928000000e+02, 4.538225000000e+01},
+		{0.000000000000e+00, 7.188560000000e+02, 1.852157000000e+02, -1.130887000000e-01},
+		{0.000000000000e+00, 0.000000000000e+00, 1.000000000000e+00, 3.779761000000e-03}
+
+	};
+	*/
 	/*Initialize Rotation Matrix (3x3) */
+	/*For um*/
 	matrix_t rotation_matrix
 	{
 		{9.999239000000e-01, 9.837760000000e-03, -7.445048000000e-03},
 		{-9.869795000000e-03, 9.999421000000e-01,-4.278459000000e-03},
 		{7.402527000000e-03, 4.351614000000e-03, 9.999631000000e-01}
 	};
-	/*Rigid transformation from (non-rectified) camera to road coordinates* (3x4)*/
-	matrix_t Tr_cam_to_road
-	{
-		{9.999044710077e-01,-1.170165577363e-02, -7.360826724365e-03, 1.911984983337e-02},
-		{1.160251828357e-02,9.998432738993e-01,-1.336987011872e-02,-1.562198078590e+00},
-		{7.516122576373e-03, 1.328318612284e-02, 9.998834806284e-01,2.752775890648e-01}
-	
-	};
-	/*For Image_1*/
+	/*For umm*/
 	/*
-	matrix_t Tr_cam_to_road
+	matrix_t rotation_matrix
 	{
-		{9.998780444958e-01, -1.379252251645e-02, -7.329673303654e-03, 2.259126679386e-02},
-		{1.371927193990e-02, 9.998563329041e-01, -9.951851093180e-03, -1.576782598490e+00},
-		{7.465881263639e-03, 9.850077017074e-03, 9.999235703691e-01,2.807170564751e-01}
-	
+		{9.999454000000e-01, 7.259129000000e-03, -7.519551000000e-03},
+		{-7.292213000000e-03, 9.999638000000e-01, -4.381729000000e-03},
+		{7.487471000000e-03, 4.436324000000e-03, 9.999621000000e-01}
 	};
 	*/
-	
-	/*For Image_2*/
-	/*
-	matrix_t Tr_cam_to_road
-	{
-		{9.998783653356e-01,-1.376905762475e-02,-7.330023107842e-03,2.258724696694e-02},
-		{1.370891707988e-02,9.998724359945e-01,-8.192773298801e-03,-1.578818275890e+00},
-		{7.441894688477e-03,8.091287506981e-03, 9.999395278003e-01,2.835072170308e-01},
-	};
-	*/
-	
-	/*For Image_13*/
-	/*
-	matrix_t Tr_cam_to_road
-	{
-		{9.993974242913e-01, -3.399222060168e-02, -7.027004866705e-03, 5.404177016000e-02},
-		{3.393449925061e-02, 9.993905818164e-01, -8.176738594524e-03,-1.562421412154e+00},
-		{7.300667829702e-03, 7.933351013649e-03, 9.999418343980e-01, 2.836494496477e-01}
-	};
-	*/
+	matrix_t Tr_cam_to_road = readcalibfile("/home/nvidia/training/calib/umm_000010.txt");
+	//print2dvector(Tr_cam_to_road);
+
 	bev.setup(intrinsic_matrix, rotation_matrix, Tr_cam_to_road);
 	bev.initialize();
 
@@ -110,9 +99,10 @@ int main(int argc, char* argv[])
 			//cout<<(int)*(ipm_image + i*IMAGE_WIDTH + j)<<"\t";
 		}
 	}
+
 	
-	//imshow("Result", gray_IPM_image);
-	//waitKey(0);
+	imshow("Result", gray_IPM_image);
+	waitKey(0);
 
 	
 	unsigned char* bin_image = convert2fp(ipm_image);
@@ -147,7 +137,7 @@ int main(int argc, char* argv[])
 	lines_w_non_zero* values = houghTransform(bin_image, numangle, numrho, thetaStep, rStep);
 
 	int line_count = values->hough_lines->countlines;
-	//cout<<"Line Count \t"<<line_count<<endl;
+	cout<<"Line Count \t"<<line_count<<endl;
 
 	/*
 	for(int i  =0;i<line_count;i++)
@@ -200,8 +190,11 @@ int main(int argc, char* argv[])
 	waitKey(0);
 	*/
 
-	initializePoints(line_objects, values->clist, values->count);	
-
+	vector<Linepoint> x_y_points = initializePoints(line_objects, values->clist, values->count);	
+//	getPolyFit(line_objects, gray_IPM_image, values->clist, values->count);
+//	vector<Spline> spline_objects(line_objects.size());
+//	getRansacSplines(line_objects, spline_objects, gray_IPM_image);
+	
 	/*
 	for(int i =0;i<line_objects.size();i++)
 	{
@@ -215,9 +208,35 @@ int main(int argc, char* argv[])
 	}
 	*/
 
+	//cout<<"Number of Lines \t"<<line_objects.size()<<endl;
 
-	fit_line(line_objects, gray_IPM_image);
-	/*	
+	/*
+	for(int i =0;i<line_objects.size();i++)
+	{
+		cout<<"startpoint \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].startpoint.y<<endl;
+		cout<<"endpoint \t"<<line_objects[i].endpoint.x<<"\t"<<line_objects[i].endpoint.y<<endl;
+	}
+	*/
+
+	for(int i =0; i<line_objects.size();i++)
+	{
+		/*
+		if(fabs(line_objects[i].startpoint.x - line_objects[i].endpoint.x) > 6)
+		{
+			getPolyFit(line_objects[i], gray_IPM_image, x_y_points);	
+		}
+		else
+		{
+			fit_line(line_objects[i], gray_IPM_image);
+		}
+		*/
+		fit_line(line_objects[i], gray_IPM_image);
+		//getPolyFit(line_objects[i], gray_IPM_image, x_y_points);	
+
+	}
+
+	//fit_line(line_objects, gray_IPM_image);
+	/*
 	unsigned char* line_detected_image = gray_IPM_image.data;
 	unsigned char* perspective_image = bev.getperspectiveView(line_detected_image);
 
@@ -234,12 +253,13 @@ int main(int argc, char* argv[])
 		}
 	}
 
-
 	imshow("Result", gray_IPM_image_detected);
 	waitKey(0);
+	*/
+
 	//auto end = std::chrono::high_resolution_clock::now();
 	//cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
-	*/
+	
 	imshow("Result", gray_IPM_image);
 	waitKey(0);
 	

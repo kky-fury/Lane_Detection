@@ -265,7 +265,7 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 	cudaDeviceSynchronize();
 	CudaCheckError();
 	
-	if(debug_pre_process)
+	if(1)
 	{
 		cudaMemcpy(h_thresholded_image, d_image, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
 		CudaCheckError();
@@ -296,7 +296,7 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 	cudaDeviceSynchronize();
 	CudaCheckError();
 
-	if(debug_pre_process)
+	if(1)
 	{	
 		cudaMemcpy(h_roi_selectedImage,d_roi_selectedImage,sizeof(float)*ROI_IMAGE_HEIGHT*ROI_IMAGE_WIDTH, cudaMemcpyDeviceToHost);
 		CudaCheckError();
@@ -317,7 +317,8 @@ unsigned char* threshold_image(float* d_image, float* h_thresholded_image, float
 
 	}
 
-	float bin_thresh = (max)/2;
+	float bin_thresh = (max)/2 - 0.2;
+	cout<<"Threshold Binary \t"<<bin_thresh<<endl;
 	unsigned char* d_bin_image;
 	cudaMalloc((void**)&d_bin_image, ROI_IMAGE_WIDTH*ROI_IMAGE_HEIGHT*sizeof(unsigned char));
 	CudaCheckError();
@@ -529,7 +530,7 @@ unsigned char* filterImage(const float* const grayImage, int width_kernel_x, int
 	CudaCheckError();
 	
 	cudaMemcpy(h_filter_Image, d_filter_Image, NUMPIX*sizeof(float), cudaMemcpyDeviceToHost);
-	unsigned char* bin_image = getQuantile(d_filter_Image, h_filter_Image,0.985);
+	unsigned char* bin_image = getQuantile(d_filter_Image, h_filter_Image,0.975);
 	
 	if(debug_pre_process)
 	{
@@ -576,7 +577,7 @@ unsigned char* convert2fp(const unsigned char* const h_grayImage)
 	
 	uchar2fp<<<gridSize,blockSize>>>(d_grayImage, d_grayImage_32f);
 
-	unsigned char* bin_image = filterImage(d_grayImage_32f, 2, 2 ,1.95,10);
+	unsigned char* bin_image = filterImage(d_grayImage_32f, 2, 2 , 1.85,10);
 
 	
 	

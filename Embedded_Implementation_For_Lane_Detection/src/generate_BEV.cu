@@ -218,7 +218,6 @@ __global__ void matrix_mul(float* d_A, float* d_B, float* d_C, int numARows, int
 
 	float Pvalue = 0;
 
-	#pragma unroll
 	for (int m = 0; m < (numAColumns-1)/TILE_WIDTH+1; ++m)
 	{
 		if (Row < numARows && m*TILE_WIDTH+tx < numAColumns)
@@ -471,6 +470,8 @@ void Calibration::setup_calib(matrix_t P2, matrix_t R0_rect, matrix_t Tr_cam_to_
 
 	}
 	this->Tr33 = this->Tr;
+
+	
 	matrix_t Tr33_inverse = inverse(this->Tr33);
 	this->Tr33_inverse = Tr33_inverse;
 
@@ -810,7 +811,7 @@ unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 	int numCol = this->numBColumns;
 
 	row_t xi_1(numCol), yi_1(numCol);
-
+	
 	float* result_row_0 = result;
 	float* result_row_1 = result + 1*numCol;
 	
@@ -823,7 +824,8 @@ unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 
 	for(int i =0;i<numCol;i++)
 	{
-		if((*(result_row_1 + i) >=1) & (*(result_row_0 +i) >=1) & (*(result_row_1 + i) <= this->imSize.b) & (*(result_row_0 + i) <= this->imSize.a))
+		if((*(result_row_1 + i) >=1) && (*(result_row_0 +i) >=1) && 
+				(*(result_row_1 + i) <= this->imSize.b) && (*(result_row_0 + i) <= this->imSize.a))
 		{
 			xi_1[count] = *(result_row_0 + i);
 			yi_1[count] = *(result_row_1 + i);
@@ -839,7 +841,8 @@ unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 	xi_1.resize(count);
 	yi_1.resize(count);
 
-	
+	cout<<"Count Value \t"<<count<<endl;
+
 	if(debug_bev)
 	{
 		for(const auto& i: xi_1)
@@ -865,11 +868,11 @@ unsigned char* BirdsEyeView::computeLookUpTable(unsigned char* image)
 
 	for(i = xi_1.begin() , j = yi_1.begin(), m = x_vec_sel.begin(), k = z_vec_sel.begin();i != xi_1.end();i++,j++,m++,k++)
 	{
-		int row = (int)*j -1;
-		int column = (int)*i -1;
+		int row = ((int) std::round(*j)) -1;
+		int column = ((int) std::round(*i)) -1;
 
-		int row_output_image = (int)*k -1;
-		int column_output_image = (int)*m -1;
+		int row_output_image = ((int) std::round(*k)) -1;
+		int column_output_image = ((int) std::round(*m)) -1;
 	
 		//cout<<"Row \t"<<row<<"Column \t"<<column<<endl;
 
