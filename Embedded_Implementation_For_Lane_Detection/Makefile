@@ -20,7 +20,7 @@ BIN_5=bev_thrust
 
 #OBJECTS = $(BIN_1) $(BIN_2) $(BIN_3) $(BIN_4) $(BIN_5) $(BIN_6)
 
-OBJECTS=Lane_Detection_main.o pre_process.o bev_thrust.o rgb2gray.o hough_transform.o line.o spline.o line_fitting.o
+OBJECTS=Lane_Detection_main.o pre_process.o bev_thrust.o rgb2gray.o hough_transform.o line.o poly.o line_fitting.o readcalib.o
 
 #threshold_2:Hough_Transform.cu
 #	$(CC) -std=c++11 -arch=sm_62 Hough_Transform.cu -o $(BIN_2) $(Include) $(CFLAGS) $(LDFLAGS) $(I_PATH) $(L_PATH) -lopencv_gpu
@@ -57,13 +57,18 @@ rgb2gray.o:./src/rgb2gray.cu
 
 hough_transform.o:./src/Hough_Transform.cu 
 	$(CC) -c -O3 -arch=sm_62 -std=c++11 ./src/Hough_Transform.cu $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o hough_transform.o 
-
 line.o:./src/Line.cpp
 	$(C) -c -O3 -std=c++11 ./src/Line.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o line.o 
-spline.o:./src/spline_fitting.cpp 
-	$(C) -c -O3 -std=c++11 ./src/spline_fitting.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o spline.o
+#spline.o:./src/spline_fitting.cpp   
+#	$(C) -c -O3 -std=c++11 ./src/spline_fitting.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o spline.o
+#spline.o:./src/spline_fitting_with_lib.cpp 
+#	$(C) -c -O3 -std=c++11 ./src/spline_fitting_with_lib.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o spline.o
 line_fitting.o:./src/line_fitting.cpp
 	$(C) -c -O3 -std=c++11 ./src/line_fitting.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o line_fitting.o 
+poly.o:./src/fit_poly.cpp 
+	$(C) -c -O3 -std=c++11 -DBOOST_UBLAS_NDEBUG ./src/fit_poly.cpp  $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o poly.o
+readcalib.o:./src/readcalib.cpp 
+	$(C) -c -O3 -std=c++11 ./src/readcalib.cpp $(C_I_PATH) $(I_PATH) $(L_PATH) $(CFLAGS) $(LDFLAGS) -o readcalib.o
 
 clean:
 	rm *.o
