@@ -13,18 +13,18 @@ The aim of this project is to develop and implement a Computer Vision based algo
 [//]:	3. Inverse_Perspective_Mapping.py - Generic code for obtaining the BEV of an image. Calculates the homography matrix by using the extrinc and intrinsic camera parameters.
 -->
 Dependencies:<br />
-	1. c++ Boost >= 1.7
-	2. CUDA Toolkit >= 7.0
-	3. OpenCV >= 2.4.6
+	1. c++ Boost >= 1.7 <br />
+	2. CUDA Toolkit >= 7.0 <br />
+	3. OpenCV >= 2.4.6 <br />
 
 Relevant Code Files: <br />
-	1. GenerateBEV.cu - CUDA Acceralated Code to get Perspective-IPM and IPM-Perspective view of an input image.
-	2. Pre_Processing.cu - CUDA Acceralated Code to pre_process the input image.
-	3. rgb2gray.cu - CUDA Acceralated Code to convert rgb image to grayscale.
-	4. Hough_Transform.cu - Fast Hough Transform using CUDA
-	5. Line.cpp - Group identical lanes and eliminates outliers
-	6. line_fitting.cpp - Using Ransac algorithm to fit a line to the detected lane. Bresenham's algorithm to plot the line pixels.
-	7. fit_poly.cpp - Least Squares 2nd degree polynomial fitting for curved lanes
+	1. GenerateBEV.cu - CUDA Acceralated Code to get Perspective-IPM and IPM-Perspective view of an input image. <br />
+	2. Pre_Processing.cu - CUDA Acceralated Code to pre_process the input image. <br />
+	3. rgb2gray.cu - CUDA Acceralated Code to convert rgb image to grayscale. <br />
+	4. Hough_Transform.cu - Fast Hough Transform using CUDA. <br />
+	5. Line.cpp - Group identical lanes and eliminates outliers. <br />
+	6. line_fitting.cpp - Using Ransac algorithm to fit a line to the detected lane. Bresenham's algorithm to plot the line pixels. <br />
+	7. fit_poly.cpp - Least Squares 2nd degree polynomial fitting for curved lanes. <br />
 
 To Do: <br />
 	Calculate Pixel Based Performance Metrics
