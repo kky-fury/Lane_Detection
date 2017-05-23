@@ -2,7 +2,7 @@
 The aim of this project is to develop and implement a Computer Vision based algorithm such that: <br />
 	1. All visible lane boundaries are detected for urban/highway roads under close to idle weather conditions
 
-[//]:Dependencies:<br />
+<!--[//]:Dependencies:<br />
 [//]:#	1. skimage <br />
 [//]:#	2. OpenCV >= 2.4.6 <br />
 [//]:	3. numpy
@@ -11,7 +11,7 @@ The aim of this project is to develop and implement a Computer Vision based algo
 [//]:	1. GenerateBEV.py - Code from KITTI Road Dataset to obtain IPM view of an Image using a calibrated camera. <br />
 [//]:	2. Lane_Detection.py - Detects multiple Lanes taking the IPM image as input. <br />
 [//]:	3. Inverse_Perspective_Mapping.py - Generic code for obtaining the BEV of an image. Calculates the homography matrix by using the extrinc and intrinsic camera parameters.
-
+-->
 Dependencies:<br />
 	1. c++ Boost >= 1.7
 	2. CUDA Toolkit >= 7.0
