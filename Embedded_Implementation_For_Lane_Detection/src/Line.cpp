@@ -54,21 +54,20 @@ void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines, int* vot
 
 	sort(line_objects.begin(), line_objects.end(), [] (const Line& lhs, const Line& rhs){return std::max(lhs.startpoint.x, lhs.endpoint.x) < std::max(rhs.startpoint.x, rhs.endpoint.x);});
 
-	/*
 	for(int i = 0;i<line_objects.size();i++)
 	{
 		cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;
 		cout<<"Current Line Votes \t"<<line_objects[i].votes<<endl;
 	}
-	*/
-	//checklanewidth(line_objects, line_count);
-	/*
+	
+	checklanewidth(line_objects, line_count);
+	
 	for(int i = 0;i<line_objects.size();i++)
 	{
 		cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;
 		cout<<"Current Line Votes \t"<<line_objects[i].votes<<endl;
 	}
-	*/
+
 };
 
 vector<Linepoint> initializePoints(vector<Line>& line_objects, unsigned int* clist, int count)
@@ -137,8 +136,8 @@ void initializeLinePoints(vector<Linepoint>& x_y_points, vector<Line>& line_obje
 
 void checklanewidth(vector<Line>& line_objects, int line_count)
 {
-	int min_distance = 10;
-	int max_distance_two_side_lanes = 30;
+	int min_distance = 17;
+	int max_distance_two_side_lanes = 38;
 	int max_distance_two_edge_lanes = 70;
 
 	vector<int> x_points(line_count); 
@@ -161,15 +160,18 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 	print_int_vector(diff_array);
 	vector<int>::iterator i;
 	vector<coor_vote>::iterator j;
+	int curr_votes = coor_vote_arr[0].votes;
 
 	for(i = diff_array.begin() + 1, j = coor_vote_arr.begin() + 1; i<diff_array.end(); i++,j++)
 	{
-		if(*i < min_distance || *i  > max_distance_two_side_lanes)
+		if(*i < min_distance || (*i  > max_distance_two_side_lanes && *i > max_distance_two_edge_lanes))
 		{
 			line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
 		}
 
 	}
+
+
 
 
 	/*

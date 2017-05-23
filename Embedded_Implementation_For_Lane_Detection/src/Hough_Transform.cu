@@ -421,26 +421,110 @@ lines_w_non_zero* houghTransform(unsigned char const* const edges,const int numa
 		}
 	*/
 		auto it = theta_to_votes_map.begin();
+		auto it_1 = next(it);
 		int index = 0;
-		int nSelectedLines = theta_to_votes_map[it->first].size();
-		float2* selLines = (float2*)malloc(nSelectedLines*sizeof(float2));
-		int* selvotes = (int*)malloc(nSelectedLines*sizeof(selvotes));
+		/*count number of lines above 50 votes*/
+		int count_lines = 0;
+		int threshold_votes = 35;
 
 		for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
 		{
+			if(it2->y > threshold_votes)
+				count_lines++;
+		}
+
+		for(auto it2 = it_1->second.begin(); it2 != it_1->second.end();++it2)
+		{
+			if(it2->y > threshold_votes)
+				count_lines++;
+
+		}
+		
+		cout<<"Count of Lines \t"<<count_lines<<endl;
+
+		int nSelectedLines;
+		float2* selLines;
+		int* selvotes;
+
+		//int nSelectedLines = theta_to_votes_map[it->first].size() + theta_to_votes_map[it_1->first].size();
+		if(count_lines > 0)
+		{
+			nSelectedLines  = count_lines;
+			selLines = (float2*)malloc(nSelectedLines*sizeof(float2));
+			selvotes = (int*)malloc(nSelectedLines*sizeof(selvotes));
+
+			for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+			{
+				if(it2->y > threshold_votes)
+				{
+					(selLines + index)->x =  (it2)->x;
+					(selLines + index)->y = it->first;
+					*(selvotes + index) = (it2)->y;
+					index++;
+				}
+			}
+		
+			for(auto it2 = it_1->second.begin(); it2 != it_1->second.end();++it2)
+			{
+				if(it2->y > threshold_votes)
+				{
+					(selLines + index)->x =  (it2)->x;
+					(selLines + index)->y = it_1->first;
+					*(selvotes + index) = (it2)->y;
+					index++;
+				}
+			}	
+		}
+		else
+		{
+			/*
+			if(theta_to_votes_map[it->first].size() > 2)
+			{
+				nSelectedLines += 2;
+			}
+			*/
+			//nSelectedLines  = theta_to_votes_map[it->first].size() + theta_to_votes_map[it_1->first].size();
+		
+			if(debug_hough)
+			{
+				cout<<"Key value \t"<<it->first<<" \t Vector Values \t"<<endl;
+				cout<<"Size \t"<<theta_to_votes_map[it->first].size()<<endl;
+			}
+
+			nSelectedLines  = theta_to_votes_map[it->first].size();
+			selLines = (float2*)malloc(nSelectedLines*sizeof(float2));
+			selvotes = (int*)malloc(nSelectedLines*sizeof(selvotes));
+		
+			for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+			{
 				(selLines + index)->x =  (it2)->x;
 				(selLines + index)->y = it->first;
 				*(selvotes + index) = (it2)->y;
 				index++;
-		}
+			}
 
-		for(int i = 0 ; i < index;i++)
+		/*
+			for(auto it2 = it_1->second.begin(); it2 != it_1->second.end();++it2)
+			{
+				(selLines + index)->x =  (it2)->x;
+				(selLines + index)->y = it_1->first;
+				*(selvotes + index) = (it2)->y;
+				index++;
+			}
+
+			*/
+		}
+	
+		if(debug_hough)
 		{
-			cout<<"Theta Value \t"<<(selLines + i)->y<<"\t"<<"Rho Value\t"<<(selLines + i)->x<<endl;
-			cout<<"Votes \t"<<*(selvotes + i)<<endl;
+			for(int i = 0 ; i < index;i++)
+			{
+				cout<<"Theta Value \t"<<(selLines + i)->y<<"\t"<<"Rho Value\t"<<(selLines + i)->x<<endl;
+				cout<<"Votes \t"<<*(selvotes + i)<<endl;
+			}
 		}
 
-		if(1)
+		if(debug_hough)
 		{
 			for(auto it = theta_to_votes_map.begin() ;it!= theta_to_votes_map.end(); ++it)
 			{

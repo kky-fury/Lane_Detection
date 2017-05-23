@@ -894,7 +894,7 @@ unsigned char* BirdsEyeView::getperspectiveView(unsigned char* image)
 	for(i = (this->z_bev_index_sel).begin(), j =
 			(this->x_bev_index_sel).begin(), m = (this->x_im_index_sel.begin()),
 			k = (this->y_im_index_sel.begin());
-			i<(this->z_bev_index_sel).end();i++, j++, m++,k++)
+			i < (this->z_bev_index_sel).end();i++ , j++, m++, k++)
 	{
 
 		int row_output_image = *k;

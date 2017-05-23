@@ -6,9 +6,9 @@ int main(int argc, char* argv[])
 
 	//Mat input_image =  imread("/home/nvidia/Lane_Detection/Original_Images/img_2.png");
 	/*Testing Set*/
-	//Mat input_image = imread("/home/nvidia/image_2/umm_000016.png");
+	Mat input_image = imread("/home/nvidia/image_2/umm_000016.png");
 
-	Mat input_image = imread("/home/nvidia/training/image_2/umm_000010.png");
+	//Mat input_image = imread("/home/nvidia/training/image_2/umm_000003.png");
 
 	unsigned char* h_rgb_img = input_image.data;
 
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 		{7.487471000000e-03, 4.436324000000e-03, 9.999621000000e-01}
 	};
 	*/
-	matrix_t Tr_cam_to_road = readcalibfile("/home/nvidia/training/calib/umm_000010.txt");
+	matrix_t Tr_cam_to_road = readcalibfile("/home/nvidia/training/calib/umm_000016.txt");
 	//print2dvector(Tr_cam_to_road);
 
 	bev.setup(intrinsic_matrix, rotation_matrix, Tr_cam_to_road);
@@ -230,13 +230,12 @@ int main(int argc, char* argv[])
 			fit_line(line_objects[i], gray_IPM_image);
 		}
 		*/
-		fit_line(line_objects[i], gray_IPM_image);
-		//getPolyFit(line_objects[i], gray_IPM_image, x_y_points);	
+		//fit_line(line_objects[i], gray_IPM_image);
+		getPolyFit(line_objects[i], gray_IPM_image, x_y_points);	
 
 	}
 
 	//fit_line(line_objects, gray_IPM_image);
-	/*
 	unsigned char* line_detected_image = gray_IPM_image.data;
 	unsigned char* perspective_image = bev.getperspectiveView(line_detected_image);
 
@@ -253,16 +252,19 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	imshow("Result", gray_IPM_image_detected);
-	waitKey(0);
-	*/
+	//imshow("Result", gray_IPM_image_detected);
+	//waitKey(0);
+	
+	imwrite("/home/nvidia/Lane_Detected_Images_Perspective/lane_image_persp_12.png", gray_IPM_image_detected);
 
 	//auto end = std::chrono::high_resolution_clock::now();
 	//cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
 	
-	imshow("Result", gray_IPM_image);
-	waitKey(0);
+	//imshow("Result", gray_IPM_image);
+	//waitKey(0);
 	
+	imwrite("/home/nvidia/Lane_Detected_Images/lane_image_ipm_12.png", gray_IPM_image);
+
 
 
 }

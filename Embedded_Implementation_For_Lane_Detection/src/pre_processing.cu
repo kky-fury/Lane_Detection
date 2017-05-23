@@ -577,7 +577,7 @@ unsigned char* convert2fp(const unsigned char* const h_grayImage)
 	
 	uchar2fp<<<gridSize,blockSize>>>(d_grayImage, d_grayImage_32f);
 
-	unsigned char* bin_image = filterImage(d_grayImage_32f, 2, 2 , 1.85,10);
+	unsigned char* bin_image = filterImage(d_grayImage_32f, 2, 2 , 1.85 ,10);
 
 	
 	
