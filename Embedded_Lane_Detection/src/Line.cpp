@@ -61,14 +61,14 @@ void getLineObjects(vector<Line>& line_objects, lin_votes* hough_lines, int* vot
 		cout<<"Current Line Votes \t"<<line_objects[i].votes<<endl;
 	}
 	*/
+
 	checklanewidth(line_objects, line_count);
-	/*
+	
 	for(int i = 0;i<line_objects.size();i++)
 	{
 		cout<<"X_coordinate \t"<<line_objects[i].startpoint.x<<"\t"<<line_objects[i].endpoint.x<<endl;
 		cout<<"Current Line Votes \t"<<line_objects[i].votes<<endl;
 	}
-	*/
 
 };
 
@@ -159,31 +159,46 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 	vector<int> diff_array(line_count);	
 	adjacent_difference(x_points.begin(), x_points.end(), diff_array.begin());
 	
-	//print_int_vector(diff_array);
+	print_int_vector(diff_array);
 	vector<int>::iterator i;
 	vector<coor_vote>::iterator j;
 	int curr_votes = coor_vote_arr[0].votes;
 
 	for(i = diff_array.begin() + 1, j = coor_vote_arr.begin() + 1; i<diff_array.end(); i++,j++)
 	{
-		if(*i < min_distance || (*i  > max_distance_two_side_lanes && *i > max_distance_two_edge_lanes))
+	
+
+		if( (*i <= min_distance && j->votes < (j-1)->votes) || (*i  > max_distance_two_side_lanes && *i > max_distance_two_edge_lanes))
 		{
-			line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
+				line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
+		}
+		else
+		{
+			if((j->votes > (j-1)->votes))
+			{
+			
+				line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == (j-1)->coordinate || lhs.endpoint.x == (j-1)->coordinate) && ((j-1)->votes == lhs.votes) ;}),line_objects.end());
+			
+			}
+			else
+			{
+				line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == (j)->coordinate || lhs.endpoint.x == (j)->coordinate) && ((j)->votes == lhs.votes) ;}),line_objects.end());
+
+			}
 		}
 
+	
 	}
 
 
 
-
-	/*
 	for(int i =0;i<coor_vote_arr.size();i++)
 	{
 		cout<<"X Coordinate Point \t"<<coor_vote_arr[i].coordinate<<"\t"<<endl;
 		cout<<"Votes \t"<<coor_vote_arr[i].votes<<endl;
 
 	}
-	*/
+	
 	//print_int_vector(x_points);
 
 	/*
