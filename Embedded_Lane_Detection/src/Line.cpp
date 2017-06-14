@@ -168,11 +168,12 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 	{
 	
 
-		if( (*i <= min_distance && j->votes < (j-1)->votes) || (*i  > max_distance_two_side_lanes && *i > max_distance_two_edge_lanes))
+		if( (*i <= min_distance) /*&& j->votes < (j-1)->votes)*/ || (*i  > max_distance_two_side_lanes && *i > max_distance_two_edge_lanes))
 		{
 				line_objects.erase(remove_if(line_objects.begin(), line_objects.end(), [&] (const Line& lhs){return (lhs.startpoint.x == j->coordinate || lhs.endpoint.x == j->coordinate) && (j->votes == lhs.votes) ;}),line_objects.end());
 		}
-		else
+		
+		/*else
 		{
 			if((j->votes > (j-1)->votes))
 			{
@@ -186,7 +187,7 @@ void checklanewidth(vector<Line>& line_objects, int line_count)
 
 			}
 		}
-
+		*/
 	
 	}
 }
