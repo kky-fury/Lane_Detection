@@ -26,9 +26,6 @@ Relevant Code Files: <br />
 	6. line_fitting.cpp - Using Ransac algorithm to fit a line to the detected lane. Bresenham's algorithm to plot the line pixels. <br />
 	7. fit_poly.cpp - Least Squares 2nd degree polynomial fitting for curved lanes. <br />
 
-To Do: <br />
-	Calculate Pixel Based Performance Metrics
-
 
 Process Pipeline: <br />
 
